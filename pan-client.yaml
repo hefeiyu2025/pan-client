@@ -1,0 +1,15 @@
+driver:
+    cloudreve:
+        url: https://pan.huang1111.cn
+        session: MTczMzMwMjA5M3xOd3dBTkVGTVZsVXpWelZVV1RkRFJWUkVRa3BJVVZNM1NsTkJTRVUxU1ZrM1QwSkpWbFJSVjBsVVNqSkVXakpMUzFsTVZ6TkhNMUU9fO2sUUWl2Z-SXN5GvmJOzs109Z7cTwkeA02uIEUUkaZV
+        refresh_time: 1733302097028
+log:
+    compress: false
+    enable: true
+    file_name: app.log
+    max_age: 28
+    max_backups: 30
+    max_size: 50
+server:
+    cache_file: ""
+    debug: true
