@@ -5,6 +5,7 @@ import (
 	logger "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -20,7 +21,7 @@ func NewClient(localFile string) *MemCache {
 	// Wait for SIGINT (interrupt) signal.
 	m := &MemCache{Cache: memCache, localFilePath: localFile}
 	shutdownChan := make(chan os.Signal, 1)
-	signal.Notify(shutdownChan, os.Interrupt)
+	signal.Notify(shutdownChan, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		for {
 			select {

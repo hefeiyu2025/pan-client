@@ -5,6 +5,7 @@ import (
 	"github.com/hefeiyu2025/pan-client/internal"
 	_ "github.com/hefeiyu2025/pan-client/internal"
 	"github.com/spf13/viper"
+	"strings"
 	"sync"
 	"time"
 )
@@ -39,10 +40,11 @@ type Meta interface {
 type Operate interface {
 	Disk() (*DiskResp, error)
 	List(req ListReq) ([]*PanObj, error)
-	Rename()
-	Mkdir()
-	Move()
-	Delete()
+	ObjRename(req ObjRenameReq) error
+	BatchRename(req BatchRenameReq) error
+	Mkdir(req MkdirReq) (*PanObj, error)
+	Move(req MovieReq) error
+	Delete(req DeleteReq) error
 	UploadPath(req OneStepUploadPathReq) error
 	UploadFile(req OneStepUploadFileReq) error
 	DownloadPath(req OneStepDownloadPathReq) error
@@ -114,59 +116,48 @@ func (c *CacheOperate) Del(key string) {
 	internal.Cache.Delete(string(c.DriverType) + "." + key)
 }
 
-type DriverErrorInterface interface {
-	GetCode() int
-	GetMsg() string
-	GetErr() error
-	GetData() interface{}
-	Error() string
+type CommonOperate struct {
 }
 
-// DriverError 定义全局的基础异常
-type DriverError struct {
-	Code int
-	Msg  string
-	Err  error
-	Data interface{}
-}
+func (c *CommonOperate) GetPanObj(path string, mustExist bool, list func(req ListReq) ([]*PanObj, error)) (*PanObj, error) {
+	truePath := strings.Trim(path, "/")
+	paths := strings.Split(truePath, "/")
 
-func (e *DriverError) GetCode() int {
-	return e.Code
-}
+	target := &PanObj{
+		Id:   "0",
+		Name: "",
+		Path: "/",
+		Size: 0,
+		Type: "dir",
+	}
+	for _, pathStr := range paths {
+		if pathStr == "" {
+			continue
+		}
+		currentChildren, err := list(ListReq{
+			Reload: false,
+			Dir:    target,
+		})
+		if err != nil {
+			return nil, OnlyError(err)
+		}
+		exist := false
+		for _, file := range currentChildren {
+			if file.Name == pathStr {
+				target = file
+				exist = true
+				break
+			}
+		}
+		// 如果必须存在且不存在，则返回错误
+		if mustExist && !exist {
+			return nil, OnlyMsg(fmt.Sprintf("%s not found", path))
+		}
 
-func (e *DriverError) GetMsg() string {
-	return e.Msg
-}
-
-func (e *DriverError) GetErr() error {
-	return e.Err
-}
-
-func (e *DriverError) GetData() interface{} {
-	return e.Data
-}
-
-func (e *DriverError) Error() string {
-	m := make(map[string]any)
-	m["code"] = e.Code
-	m["msg"] = e.Msg
-	m["err"] = e.Err
-	m["data"] = e.Data
-	errorStr := ""
-	for key, value := range m {
-		if value != nil {
-			errorStr = e.appendKeyValue(errorStr, key, value)
+		// 如果不需要必须存在且不存在，则跳出循环
+		if !exist {
+			break
 		}
 	}
-	return errorStr
-}
-
-func (e *DriverError) appendKeyValue(errorStr, key string, value interface{}) string {
-	errorStr = errorStr + key
-	errorStr = errorStr + "="
-	stringVal, ok := value.(string)
-	if !ok {
-		stringVal = fmt.Sprint(value)
-	}
-	return errorStr + fmt.Sprintf("%q", stringVal) + " "
+	return target, nil
 }

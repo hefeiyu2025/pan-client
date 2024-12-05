@@ -16,6 +16,31 @@ type ListReq struct {
 	Dir    *PanObj
 }
 
+type MkdirReq struct {
+	NewPath string
+	Parent  *PanObj
+}
+
+type DeleteReq struct {
+	Items []*PanObj
+}
+
+type MovieReq struct {
+	Items     []*PanObj
+	TargetObj *PanObj
+}
+
+type ObjRenameReq struct {
+	Obj     *PanObj
+	NewName string
+}
+
+type BatchRenameFunc func(obj *PanObj) string
+type BatchRenameReq struct {
+	Path *PanObj
+	Func BatchRenameFunc
+}
+
 type PanObj struct {
 	Id     string
 	Name   string

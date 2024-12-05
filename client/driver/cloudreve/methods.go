@@ -13,24 +13,24 @@ import (
 
 func funReturn(err error, response *req.Response, result Resp) (*Resp, client.DriverErrorInterface) {
 	if err != nil {
-		return nil, OnlyError(err)
+		return nil, client.OnlyError(err)
 	}
 	if response.IsErrorState() && result.Code != 0 {
-		return nil, CodeMsg(result.Code, result.Msg)
+		return nil, client.CodeMsg(result.Code, result.Msg)
 	}
-	return &result, NoError()
+	return &result, client.NoError()
 }
 func funReturnBySuccess[T any](err error, response *req.Response, errorResult Resp, successResult RespData[T]) (*RespData[T], client.DriverErrorInterface) {
 	if err != nil {
-		return nil, OnlyError(err)
+		return nil, client.OnlyError(err)
 	}
 	if response.IsErrorState() {
-		return nil, CodeMsg(errorResult.Code, errorResult.Msg)
+		return nil, client.CodeMsg(errorResult.Code, errorResult.Msg)
 	}
 	if successResult.Code != 0 {
-		return nil, CodeMsg(successResult.Code, successResult.Msg)
+		return nil, client.CodeMsg(successResult.Code, successResult.Msg)
 	}
-	return &successResult, NoError()
+	return &successResult, client.NoError()
 }
 
 func (c *Cloudreve) config() (*RespData[SiteConfig], client.DriverErrorInterface) {
@@ -42,13 +42,13 @@ func (c *Cloudreve) config() (*RespData[SiteConfig], client.DriverErrorInterface
 	//site/config
 	response, err := r.Get("/site/config")
 	if err != nil {
-		return nil, OnlyError(err)
+		return nil, client.OnlyError(err)
 	}
 	if response.IsErrorState() {
-		return nil, CodeMsg(errorResult.Code, errorResult.Msg)
+		return nil, client.CodeMsg(errorResult.Code, errorResult.Msg)
 	}
 	if successResult.Code != 0 {
-		return nil, CodeMsg(successResult.Code, successResult.Msg)
+		return nil, client.CodeMsg(successResult.Code, successResult.Msg)
 	}
 	if !successResult.Data.User.Anonymous {
 		for _, cookie := range response.Cookies() {
@@ -59,9 +59,9 @@ func (c *Cloudreve) config() (*RespData[SiteConfig], client.DriverErrorInterface
 			}
 		}
 	} else {
-		return nil, OnlyMsg("session is expired")
+		return nil, client.OnlyMsg("session is expired")
 	}
-	return &successResult, NoError()
+	return &successResult, client.NoError()
 }
 
 func (c *Cloudreve) userStorage() (*RespData[Storage], client.DriverErrorInterface) {
@@ -429,11 +429,11 @@ func (c *Cloudreve) OneDriveUpload(req OneDriveUploadReq) (int64, client.DriverE
 
 	stat, err := req.LocalFile.Stat()
 	if err != nil {
-		return uploadedSize, OnlyError(err)
+		return uploadedSize, client.OnlyError(err)
 	}
 	// 判断是否目录，目录则无法处理
 	if stat.IsDir() {
-		return uploadedSize, OnlyMsg(req.LocalFile.Name() + " not a file")
+		return uploadedSize, client.OnlyMsg(req.LocalFile.Name() + " not a file")
 	}
 	// 计算剩余字节数
 	totalSize := stat.Size()
@@ -445,7 +445,7 @@ func (c *Cloudreve) OneDriveUpload(req OneDriveUploadReq) (int64, client.DriverE
 		// 将文件指针移动到指定的分片位置
 		ret, _ := req.LocalFile.Seek(uploadedSize, 0)
 		if ret == 0 {
-			return uploadedSize, OnlyMsg("seek file failed")
+			return uploadedSize, client.OnlyMsg("seek file failed")
 		}
 	}
 	pr := &ProgressReader{
@@ -467,10 +467,10 @@ func (c *Cloudreve) OneDriveUpload(req OneDriveUploadReq) (int64, client.DriverE
 			SetHeader("Content-Range", "bytes "+strconv.FormatInt(startSize, 10)+"-"+strconv.FormatInt(endSize-1, 10)+"/"+strconv.FormatInt(totalSize, 10)).
 			Put(req.UploadUrl)
 		if reqErr != nil {
-			return uploadedSize, OnlyError(err)
+			return uploadedSize, client.OnlyError(err)
 		}
 		if response.IsErrorState() {
-			return uploadedSize, OnlyMsg(response.String())
+			return uploadedSize, client.OnlyMsg(response.String())
 		}
 		uploadedSize = endSize
 
@@ -478,5 +478,5 @@ func (c *Cloudreve) OneDriveUpload(req OneDriveUploadReq) (int64, client.DriverE
 			break
 		}
 	}
-	return uploadedSize, NoError()
+	return uploadedSize, client.NoError()
 }

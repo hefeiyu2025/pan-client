@@ -3,32 +3,28 @@ package main
 import (
 	"github.com/hefeiyu2025/pan-client/client"
 	_ "github.com/hefeiyu2025/pan-client/client/driver"
-	logger "github.com/sirupsen/logrus"
+	"os"
+	"strings"
 )
 
 func main() {
+	defer os.Exit(0)
 	driver, err := client.GetDriver(client.Cloudreve)
 	if err != nil {
 		panic(err)
 	}
-	data, err := driver.List(client.ListReq{
-		Reload: false,
-		Dir: &client.PanObj{
-			Path: "/",
+
+	err = driver.BatchRename(client.BatchRenameReq{
+		Path: &client.PanObj{
+			Name: "潜行狙击",
+			Path: "/影视",
+			Type: "dir",
+		},
+		Func: func(obj *client.PanObj) string {
+			name := obj.Name
+			name = strings.Replace(name, ".Lives.of.Omission", "", -1)
+			return name
 		},
 	})
-	if err != nil {
-		panic(err)
-	}
-	logger.Info(data)
-	data1, err := driver.List(client.ListReq{
-		Reload: false,
-		Dir: &client.PanObj{
-			Path: "/",
-		},
-	})
-	if err != nil {
-		panic(err)
-	}
-	logger.Info(data1)
+
 }
