@@ -11,13 +11,15 @@ import (
 
 var Cache *MemCache
 
+var CacheExitChan = make(chan struct{}, 1)
+
 type MemCache struct {
 	*cache.Cache
 	localFilePath string
 }
 
 func NewClient(localFile string) *MemCache {
-	memCache := cache.New(24*time.Hour, 15*time.Minute)
+	memCache := cache.New(12*time.Hour, 30*time.Minute)
 	// Wait for SIGINT (interrupt) signal.
 	m := &MemCache{Cache: memCache, localFilePath: localFile}
 	shutdownChan := make(chan os.Signal, 1)
@@ -27,22 +29,39 @@ func NewClient(localFile string) *MemCache {
 			select {
 			case <-shutdownChan:
 				signal.Stop(shutdownChan)
-				m.Close()
+				m.save()
+				return
+			case <-CacheExitChan:
+				m.save()
+				WaitGroup.Done()
 				return
 			}
 		}
 	}()
+	m.load()
 	return m
 }
-
-func (m *MemCache) Close() {
+func (m *MemCache) load() {
 	if m.localFilePath != "" {
+		if _, err := os.Stat(m.localFilePath); os.IsNotExist(err) {
+			logger.Errorf("cache load file %s err: %v", m.localFilePath, err)
+			return
+		}
+		err := m.LoadFile(m.localFilePath)
+		if err != nil {
+			logger.Errorf("cache load file %s err: %v", m.localFilePath, err)
+		}
+	}
+}
+
+func (m *MemCache) save() {
+	if m.localFilePath != "" {
+		m.DeleteExpired()
 		err := m.SaveFile(m.localFilePath)
 		if err != nil {
 			logger.Errorf("cache save file err: %v", err)
 		}
 	}
-
 }
 
 func init() {

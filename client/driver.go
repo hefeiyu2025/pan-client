@@ -2,8 +2,8 @@ package client
 
 import (
 	"fmt"
+	_ "github.com/hefeiyu2025/pan-client/common"
 	"github.com/hefeiyu2025/pan-client/internal"
-	_ "github.com/hefeiyu2025/pan-client/internal"
 	"github.com/spf13/viper"
 	"strings"
 	"sync"
@@ -101,7 +101,9 @@ func (c *CacheOperate) GetOrDefault(key string, defFun DefaultFun) (interface{},
 }
 
 func (c *CacheOperate) Set(key string, value interface{}) {
-	c.SetDuration(key, value, -1)
+	c.w.Lock()
+	defer c.w.Unlock()
+	internal.Cache.SetDefault(string(c.DriverType)+"."+key, value)
 }
 
 func (c *CacheOperate) SetDuration(key string, value interface{}, d time.Duration) {
