@@ -27,12 +27,14 @@ type Cloudreve struct {
 	client.PropertiesOperate
 	client.CacheOperate
 	client.CommonOperate
+	client.BaseOperate
 }
 
 type CloudreveProperties struct {
 	CloudreveUrl     string `mapstructure:"url" json:"url" yaml:"url"`
 	CloudreveSession string `mapstructure:"session" json:"session" yaml:"session"`
-	RefreshTime      int64  `mapstructure:"refresh_time" json:"refresh_time" yaml:"refresh_time" defualt:"0"`
+	RefreshTime      int64  `mapstructure:"refresh_time" json:"refresh_time" yaml:"refresh_time" default:"0"`
+	ChunkSize        int64  `mapstructure:"chunk_size" json:"chunk_size" yaml:"chunk_size" default:"104857600"` // 100M
 }
 
 func (cp *CloudreveProperties) OnlyImportProperties() {
@@ -122,7 +124,7 @@ func (c *Cloudreve) List(req client.ListReq) ([]*client.PanObj, error) {
 				Parent: req.Dir,
 			})
 		}
-		c.Set("policy", directory.Data.Policy)
+		c.Set(cachePolicy, directory.Data.Policy)
 		return panObjs, nil
 	})
 	if err != nil {
@@ -200,9 +202,12 @@ func (c *Cloudreve) Mkdir(req client.MkdirReq) (*client.PanObj, error) {
 		// 不处理，直接返回
 		return nil, nil
 	}
-	targetPath := req.Parent.Path + "/" + strings.Trim(req.NewPath, "/")
-	if req.Parent.Id == "0" || req.Parent.Path == "/" {
-		targetPath = "/" + strings.Trim(req.NewPath, "/")
+	targetPath := "/"
+	if req.Parent != nil {
+		targetPath = req.Parent.Path + "/" + strings.Trim(req.NewPath, "/")
+		if req.Parent.Id == "0" || req.Parent.Path == "/" {
+			targetPath = "/" + strings.Trim(req.NewPath, "/")
+		}
 	}
 	obj, err := c.GetPanObj(targetPath, false, c.List)
 	if err != nil {
@@ -249,11 +254,6 @@ func (c *Cloudreve) Move(req client.MovieReq) error {
 	if targetObj.Id == "" {
 		create, err := c.Mkdir(client.MkdirReq{
 			NewPath: strings.Trim(targetObj.Path, "/") + "/" + targetObj.Name,
-			Parent: &client.PanObj{
-				Id:   "0",
-				Name: "",
-				Path: "/",
-			},
 		})
 		if err != nil {
 			return err
@@ -350,99 +350,63 @@ func (c *Cloudreve) Delete(req client.DeleteReq) error {
 
 	return nil
 }
-func (c *Cloudreve) UploadPath(req client.OneStepUploadPathReq) error { // 遍历目录
-	err := filepath.Walk(req.LocalPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			for _, ignorePath := range req.IgnorePaths {
-				if filepath.Base(path) == ignorePath {
-					return filepath.SkipDir
-				}
-			}
+
+func (c *Cloudreve) UploadPath(req client.OneStepUploadPathReq) error {
+	return c.BaseUploadPath(req, c.UploadFile)
+}
+
+func (c *Cloudreve) uploadErrAfter(md5Key string, uploadedSize int64, session UploadCredential) {
+	c.Set(cacheChunkPrefix+md5Key, uploadedSize)
+	errorTimes, _, _ := c.GetOrDefault(cacheSessionErrPrefix+md5Key, func() (interface{}, error) {
+		return 0, nil
+	})
+	i := errorTimes.(int)
+	if i > 3 {
+		if session.SessionID != "" {
+			_, _ = c.fileUploadDeleteUploadSession(session.SessionID)
 		} else {
-			// 获取相对于root的相对路径
-			relPath, _ := filepath.Rel(req.LocalPath, path)
-			relPath = strings.Replace(relPath, "\\", "/", -1)
-			relPath = strings.Replace(relPath, info.Name(), "", 1)
-			NotUpload := false
-			for _, ignoreFile := range req.IgnoreFiles {
-				if info.Name() == ignoreFile {
-					NotUpload = true
-					break
-				}
-			}
-			for _, extension := range req.IgnoreExtensions {
-				if strings.HasSuffix(info.Name(), extension) {
-					NotUpload = true
-					break
-				}
-			}
-			for _, extension := range req.Extensions {
-				if strings.HasSuffix(info.Name(), extension) {
-					NotUpload = false
-					break
-				}
-				NotUpload = true
-			}
-			if !NotUpload {
-				err = c.UploadFile(client.OneStepUploadFileReq{
-					LocalFile:      path,
-					RemotePath:     strings.TrimRight(req.RemotePath, "/") + "/" + relPath,
-					PolicyId:       req.PolicyId,
-					Resumable:      req.Resumable,
-					SuccessDel:     req.SuccessDel,
-					RemoteTransfer: req.RemoteTransfer,
-				})
-				if err == nil {
-					if req.SuccessDel {
-						dir := filepath.Dir(path)
-						if dir != "." {
-							empty, _ := internal.IsEmptyDir(dir)
-							if empty {
-								_ = os.Remove(dir)
-								fmt.Println("uploaded success and delete", dir)
-							}
-						}
-					}
-				} else {
-					if !req.SkipFileErr {
-						return err
-					} else {
-						fmt.Println("upload err", err)
-					}
-				}
-			}
+			_, _ = c.fileUploadDeleteAllUploadSession()
 		}
-		return nil
+	}
+	c.Set(cacheSessionErrPrefix+md5Key, i+1)
+}
+
+func (c *Cloudreve) UploadFile(req client.OneStepUploadFileReq) error {
+	stat, err := os.Stat(req.LocalFile)
+	if err != nil {
+		return err
+	}
+	remotePath := strings.Trim(req.RemotePath, "/")
+	remoteName := stat.Name()
+	if req.RemoteTransfer != nil {
+		remotePath, remoteName = req.RemoteTransfer(remotePath, remoteName)
+	}
+	remoteAllPath := remotePath + "/" + remoteName
+	_, err = c.GetPanObj(remoteAllPath, true, c.List)
+	// 没有报错证明文件已经存在
+	if err == nil {
+		return client.OnlyMsg(remoteAllPath + " is exist")
+	}
+	_, err = c.Mkdir(client.MkdirReq{
+		NewPath: remotePath,
 	})
 	if err != nil {
-		return err
+		return client.MsgError(remotePath+" create error", err)
 	}
-	return nil
-}
-func (c *Cloudreve) UploadFile(req client.OneStepUploadFileReq) error {
-	file, err := os.Open(req.LocalFile)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	stat, err := file.Stat()
-	if err != nil {
-		return err
-	}
-	remotePath := strings.TrimLeft(req.RemotePath, "/")
-	remoteName := stat.Name()
-	md5Key := internal.Md5HashStr(req.LocalFile + remotePath + req.PolicyId)
+	md5Key := internal.Md5HashStr(remoteAllPath)
 	var session UploadCredential
 	if req.Resumable {
-		data, exist, err := c.GetOrDefault("session_"+md5Key, func() (interface{}, error) {
+		data, exist, err := c.GetOrDefault(cacheSessionPrefix+md5Key, func() (interface{}, error) {
+			policy, exist := c.Get(cachePolicy)
+			if !exist {
+				return nil, client.OnlyMsg(cachePolicy + " is not exist")
+			}
+			summary := policy.(*PolicySummary)
 			resp, e := c.fileUploadGetUploadSession(CreateUploadSessionReq{
 				Path:         "/" + remotePath,
 				Size:         uint64(stat.Size()),
 				Name:         remoteName,
-				PolicyID:     req.PolicyId,
+				PolicyID:     summary.ID,
 				LastModified: stat.ModTime().UnixMilli(),
 			})
 			if e != nil {
@@ -456,46 +420,42 @@ func (c *Cloudreve) UploadFile(req client.OneStepUploadFileReq) error {
 		if exist {
 			session = data.(UploadCredential)
 		}
-
 	}
-	if req.RemoteTransfer != nil {
-		remotePath, remoteName = req.RemoteTransfer(remotePath, remoteName)
-	}
-
-	uploadedSize := 0
+	var uploadedSize int64 = 0
 	if req.Resumable {
-		//cacheErr := GetCache("chunk_"+md5Key, &uploadedSize)
-		//if cacheErr != nil {
-		//	fmt.Println("cache err:", cacheErr)
-		//}
+		if obj, exist := c.Get(cacheChunkPrefix + md5Key); exist {
+			uploadedSize = obj.(int64)
+		}
 	}
-	_, err = c.OneDriveUpload(OneDriveUploadReq{
+	uploadedSize, err = c.oneDriveUpload(OneDriveUploadReq{
 		UploadUrl:    session.UploadURLs[0],
-		LocalFile:    file,
-		UploadedSize: int64(uploadedSize),
-		ChunkSize:    int64(session.ChunkSize),
+		LocalFile:    req.LocalFile,
+		UploadedSize: uploadedSize,
+		ChunkSize:    min(int64(session.ChunkSize), c.properties.ChunkSize),
 	})
 	if err != nil {
-		//dealError(req.Resumable, md5Key, session.SessionID, uploaded, c)
+		c.uploadErrAfter(md5Key, uploadedSize, session)
 		return err
 	}
 
 	_, err = c.oneDriveCallback(session.SessionID)
 	if err != nil {
-		//dealError(req.Resumable, md5Key, session.SessionID, uploaded, c)
+		c.uploadErrAfter(md5Key, uploadedSize, session)
 		return err
 	}
 	if req.Resumable {
-		//_ = DelCache("session_" + md5Key)
-		//_ = DelCache("chunk_" + md5Key)
+		c.Del(cacheSessionPrefix + md5Key)
+		c.Del(cacheChunkPrefix + md5Key)
+		c.Del(cacheSessionErrPrefix + md5Key)
 	}
 	// 上传成功则移除文件了
 	if req.SuccessDel {
 		_ = os.Remove(req.LocalFile)
-		fmt.Println("uploaded success and delete", req.LocalFile)
+		logger.Println("uploaded success and delete", req.LocalFile)
 	}
 	return nil
 }
+
 func (c *Cloudreve) DownloadPath(req client.OneStepDownloadPathReq) error { return nil }
 func (c *Cloudreve) DownloadFile(req client.OneStepDownloadFileReq) error { return nil }
 

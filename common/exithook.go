@@ -1,17 +1,16 @@
 package common
 
 import (
-	"fmt"
 	"github.com/hefeiyu2025/pan-client/internal"
 	logger "github.com/sirupsen/logrus"
 	"os"
 )
 
-func init() {
+func InitExitHook() {
 	go func() {
 		select {
 		case <-internal.ExitChan:
-			fmt.Print("Exit")
+			logger.Info("Exit hook")
 			internal.WaitGroup.Add(1)
 			internal.CacheExitChan <- struct{}{}
 			internal.WaitGroup.Done()

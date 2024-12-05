@@ -1,10 +1,8 @@
 package cloudreve
 
 import (
-	"fmt"
 	"github.com/hefeiyu2025/pan-client/client"
 	"github.com/imroc/req/v3"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -393,90 +391,32 @@ func (c *Cloudreve) oneDriveCallback(sessionId string) (*Resp, client.DriverErro
 	return funReturn(err, response, result)
 }
 
-type ProgressReader struct {
-	io.ReadCloser
-	totalSize int64
-	uploaded  int64
-	startTime time.Time
-}
-
-func (pr *ProgressReader) Read(p []byte) (n int, err error) {
-	n, err = pr.ReadCloser.Read(p)
-	if n > 0 {
-		pr.uploaded += int64(n)
-		elapsed := time.Since(pr.startTime).Seconds()
-		var speed float64
-		if elapsed == 0 {
-			speed = float64(pr.uploaded) / 1024
-		} else {
-			speed = float64(pr.uploaded) / 1024 / elapsed // KB/s
-		}
-
-		// 计算进度百分比
-		percent := float64(pr.uploaded) / float64(pr.totalSize) * 100
-		fmt.Printf("\ruploading: %.2f%% (%d/%d bytes, %.2f KB/s)", percent, pr.uploaded, pr.totalSize, speed)
-		// 相等即已经处理完毕
-		if pr.uploaded == pr.totalSize {
-			fmt.Println()
-		}
-	}
-	return n, err
-}
-
 // OneDriveUpload 分片上传 返回已上传的字节数和错误信息
-func (c *Cloudreve) OneDriveUpload(req OneDriveUploadReq) (int64, client.DriverErrorInterface) {
+func (c *Cloudreve) oneDriveUpload(req OneDriveUploadReq) (int64, client.DriverErrorInterface) {
 	uploadedSize := req.UploadedSize
 
-	stat, err := req.LocalFile.Stat()
+	pr, err := client.NewProcessReader(req.LocalFile, req.ChunkSize, uploadedSize)
 	if err != nil {
-		return uploadedSize, client.OnlyError(err)
-	}
-	// 判断是否目录，目录则无法处理
-	if stat.IsDir() {
-		return uploadedSize, client.OnlyMsg(req.LocalFile.Name() + " not a file")
-	}
-	// 计算剩余字节数
-	totalSize := stat.Size()
-	leftSize := totalSize - uploadedSize
-
-	chunkNum := (leftSize / req.ChunkSize) + 1
-	fmt.Printf("split chunk left size: %d, num:%d \n", leftSize, chunkNum)
-	if uploadedSize > 0 {
-		// 将文件指针移动到指定的分片位置
-		ret, _ := req.LocalFile.Seek(uploadedSize, 0)
-		if ret == 0 {
-			return uploadedSize, client.OnlyMsg("seek file failed")
-		}
-	}
-	pr := &ProgressReader{
-		startTime: time.Now(),
-		totalSize: totalSize,
-		uploaded:  uploadedSize,
+		return uploadedSize, err
 	}
 	for {
-		pr.ReadCloser = io.NopCloser(&io.LimitedReader{
-			R: req.LocalFile,
-			N: req.ChunkSize,
-		})
-		startSize := uploadedSize
-		endSize := min(totalSize, uploadedSize+req.ChunkSize)
-
+		startSize, endSize := pr.NextChunk()
 		response, reqErr := c.defaultClient.R().SetBody(pr).
 			SetContentType("application/octet-stream").
 			SetHeader("Content-Length", strconv.FormatInt(endSize-startSize, 10)).
-			SetHeader("Content-Range", "bytes "+strconv.FormatInt(startSize, 10)+"-"+strconv.FormatInt(endSize-1, 10)+"/"+strconv.FormatInt(totalSize, 10)).
+			SetHeader("Content-Range", "bytes "+strconv.FormatInt(startSize, 10)+"-"+strconv.FormatInt(endSize-1, 10)+"/"+strconv.FormatInt(pr.GetTotal(), 10)).
 			Put(req.UploadUrl)
 		if reqErr != nil {
-			return uploadedSize, client.OnlyError(err)
+			return pr.GetUploaded(), client.OnlyError(err)
 		}
 		if response.IsErrorState() {
-			return uploadedSize, client.OnlyMsg(response.String())
+			return pr.GetUploaded(), client.OnlyMsg(response.String())
 		}
-		uploadedSize = endSize
 
-		if endSize == totalSize {
+		if pr.IsFinish() {
 			break
 		}
 	}
-	return uploadedSize, client.NoError()
+	pr.Close()
+	return pr.GetUploaded(), client.NoError()
 }

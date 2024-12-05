@@ -1,6 +1,9 @@
 package client
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 const (
 	NOERR   int = 0
@@ -97,6 +100,15 @@ func CodeMsg(code int, msg string) DriverErrorInterface {
 }
 
 func CodeMsgErrorData(code int, msg string, error error, data interface{}) DriverErrorInterface {
+	var err *DriverError
+	if errors.As(error, &err) {
+		return &DriverError{
+			Code: code,
+			Msg:  err.Msg + " " + msg,
+			Err:  err.Err,
+			Data: data,
+		}
+	}
 	return &DriverError{
 		Code: code,
 		Msg:  msg,

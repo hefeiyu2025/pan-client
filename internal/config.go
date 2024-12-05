@@ -29,11 +29,7 @@ type RootConfig struct {
 
 var Config RootConfig
 
-func init() {
-	initConfig()
-}
-
-func initConfig() {
+func InitConfig() {
 	configName := "pan-client"
 	// 添加运行目录
 

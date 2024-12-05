@@ -53,7 +53,6 @@ type PanObj struct {
 type OneStepUploadFileReq struct {
 	LocalFile      string
 	RemotePath     string
-	PolicyId       string
 	Resumable      bool
 	SuccessDel     bool
 	RemoteTransfer func(remotePath, remoteName string) (string, string)
@@ -62,7 +61,6 @@ type OneStepUploadFileReq struct {
 type OneStepUploadPathReq struct {
 	LocalPath        string
 	RemotePath       string
-	PolicyId         string
 	Resumable        bool
 	SkipFileErr      bool
 	SuccessDel       bool

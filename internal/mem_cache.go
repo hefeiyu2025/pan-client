@@ -64,7 +64,7 @@ func (m *MemCache) save() {
 	}
 }
 
-func init() {
+func InitCache() {
 	localFile := ""
 	if Config.Server.CacheFile != "" {
 		localFile = GetProcessPath() + "/" + Config.Server.CacheFile

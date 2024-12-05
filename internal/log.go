@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 )
 
-func init() {
+func InitLog() {
 	formatter := logrus.TextFormatter{
 		ForceColors:               true,
 		EnvironmentOverrideColors: true,

@@ -1,7 +1,6 @@
 package cloudreve
 
 import (
-	"os"
 	"time"
 )
 
@@ -307,7 +306,7 @@ type ShareListReq struct {
 
 type OneDriveUploadReq struct {
 	UploadUrl    string
-	LocalFile    *os.File
+	LocalFile    string
 	UploadedSize int64
 	ChunkSize    int64
 }
