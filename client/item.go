@@ -73,17 +73,17 @@ type OneStepUploadPathReq struct {
 type DownloadCallback func(localPath, localFile string)
 
 type OneStepDownloadPathReq struct {
-	Remote           string
+	RemotePath       *PanObj
 	LocalPath        string
-	IsParallel       bool
-	SegmentSize      int64
+	Concurrency      int
+	ChunkSize        int64
 	DownloadCallback DownloadCallback
 }
 
 type OneStepDownloadFileReq struct {
-	Remote           string
+	RemoteFile       *PanObj
 	LocalPath        string
-	IsParallel       bool
-	SegmentSize      int64
+	Concurrency      int
+	ChunkSize        int64
 	DownloadCallback DownloadCallback
 }

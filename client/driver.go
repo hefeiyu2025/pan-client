@@ -145,6 +145,50 @@ func (b *BaseOperate) BaseUploadPath(req OneStepUploadPathReq, UploadFile func(r
 	return OnlyMsg("path is empty")
 }
 
+func (b *BaseOperate) BaseDownloadPath(req OneStepDownloadPathReq,
+	List func(req ListReq) ([]*PanObj, error),
+	DownloadFile func(req OneStepDownloadFileReq) error) error {
+	dir := req.RemotePath
+	logger.Infof("start download dir %s", strings.Trim(dir.Path, "/")+"/"+dir.Name)
+	if dir.Type != "dir" {
+		return OnlyMsg("only support download dir")
+	}
+	objs, err := List(ListReq{
+		Reload: true,
+		Dir:    req.RemotePath,
+	})
+	if err != nil {
+		return err
+	}
+	for _, object := range objs {
+		if object.Type == "dir" {
+			err = b.BaseDownloadPath(OneStepDownloadPathReq{
+				RemotePath:       object,
+				LocalPath:        req.LocalPath,
+				Concurrency:      req.Concurrency,
+				ChunkSize:        req.ChunkSize,
+				DownloadCallback: req.DownloadCallback,
+			}, List, DownloadFile)
+			if err != nil {
+				return err
+			}
+		} else {
+			err = DownloadFile(OneStepDownloadFileReq{
+				RemoteFile:       object,
+				LocalPath:        req.LocalPath,
+				Concurrency:      req.Concurrency,
+				ChunkSize:        req.ChunkSize,
+				DownloadCallback: req.DownloadCallback,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
+	fmt.Println("end download dir", strings.Trim(dir.Path, "/")+"/"+dir.Name)
+	return nil
+}
+
 type Share interface {
 	ShareList()
 	NewShare()
@@ -312,7 +356,7 @@ func (pr *ProgressReader) Close() {
 	if pr.file != nil {
 		pr.file.Close()
 	}
-	logger.Infof("file:%s uploaded:%d,total:%d,%.2f%%", name, pr.uploaded+pr.currentUploaded, pr.totalSize, float64(pr.uploaded)/float64(pr.totalSize)*100)
+	logger.Infof("file:%s uploaded:%d,total:%d,%.2f%%", name, pr.uploaded, pr.totalSize, float64(pr.uploaded)/float64(pr.totalSize)*100)
 }
 func (pr *ProgressReader) GetTotal() int64 {
 	return pr.totalSize

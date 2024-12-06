@@ -35,6 +35,17 @@ func GetProcessPath() string {
 	return filepath.Dir(process)
 }
 
+func IsExistFile(filePath string) (os.FileInfo, error) {
+	stat, err := os.Stat(filePath)
+	if err == nil {
+		return stat, nil
+	}
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	return nil, err
+}
+
 // MD5
 
 func Md5HashStr(str string) string {
