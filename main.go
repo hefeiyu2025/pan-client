@@ -19,8 +19,9 @@ func main() {
 			Path: "/影视",
 			Type: "dir",
 		},
-		LocalPath: "./",
-		ChunkSize: 20 * 1024 * 1024,
+		Concurrency: 1,
+		LocalPath:   "./zaijian",
+		ChunkSize:   2 * 1024 * 1024,
 		DownloadCallback: func(localPath, localFile string) {
 			logger.Info(localPath, localFile)
 		},

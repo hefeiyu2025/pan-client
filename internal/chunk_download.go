@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"github.com/imroc/req/v3"
 	"io"
-	"math"
 	urlpkg "net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -83,9 +83,10 @@ func (pd *ChunkDownload) ensure() error {
 		pd.chunkSize = 1024 * 1024 * 10 // 10MB
 	}
 	if pd.tempRootDir == "" {
-		pd.tempRootDir = os.TempDir()
+		//pd.tempRootDir = os.TempDir()
+		pd.tempRootDir = "./tmp"
 	}
-	pd.tempDir = filepath.Join(pd.tempRootDir, Md5HashStr(pd.url))
+	pd.tempDir = filepath.Join(pd.tempRootDir, Md5HashStr(filepath.Base(pd.filename)))
 
 	err := os.MkdirAll(pd.tempDir, os.ModePerm)
 	if err != nil {
@@ -178,13 +179,17 @@ func (pd *ChunkDownload) handleTask(t *downloadTask, ctx ...context.Context) {
 		pd.errCh <- err
 		return
 	}
-	err = pd.client.Get(pd.url).
+	resp, err := pd.client.R().
 		SetHeader("Range", fmt.Sprintf("bytes=%d-%d", t.rangeStart, t.rangeEnd)).
 		SetOutput(file).
-		Do(ctx...).Err
+		Get(pd.url)
 
 	if err != nil {
 		pd.errCh <- err
+		return
+	}
+	if resp.IsErrorState() {
+		pd.errCh <- fmt.Errorf("%s", resp.String())
 		return
 	}
 	t.tempFile = file
@@ -252,13 +257,14 @@ func (pd *ChunkDownload) Do(ctx ...context.Context) error {
 		}
 		pd.totalBytes = resp.ContentLength
 	}
-	pd.lastIndex = int(math.Ceil(float64(pd.totalBytes)/float64(pd.chunkSize))) - 1
+
 	pd.wg.Add(1)
 	go pd.mergeFile()
 	go func() {
 		pd.wg.Wait()
 		close(pd.wgDoneCh)
 	}()
+
 	err = pd.calTask()
 	if err != nil {
 		return err
@@ -274,97 +280,98 @@ func (pd *ChunkDownload) Do(ctx ...context.Context) error {
 }
 
 type Range struct {
-	start int64
-	end   int64
+	start     int64
+	end       int64
+	completed bool
+	fileName  string
 }
 
 func (pd *ChunkDownload) calTask() error {
-	totalBytes := pd.totalBytes
-	start := int64(0)
-	existRange, err := pd.existRange()
+	ranges, err := pd.CalRange()
 	if err != nil {
 		return err
 	}
-	for i := 0; ; i++ {
-		end := start + (pd.chunkSize - 1)
-		if end > (totalBytes - 1) {
-			end = totalBytes - 1
-		}
-		exist := false
-		for _, r := range existRange {
-			if !(end < r.start || start > r.end) {
-				exist = true
-				if start >= r.start && end <= r.end {
-					// 完全重叠
+	pd.lastIndex = len(ranges) - 1
+	for i, r := range ranges {
 
-				} else if start < r.start {
-					// 左重叠
-					end = r.start - 1
-				} else if end > r.end {
-					// 右重叠
-					start = r.end + 1
-				}
-			}
+		task := &downloadTask{
+			tempFilename: r.fileName,
+			index:        i,
+			rangeStart:   r.start,
+			rangeEnd:     r.end,
 		}
-
-		if !exist {
-			task := &downloadTask{
-				tempFilename: getRangeTempFile(start, end, pd.tempDir),
-				index:        i,
-				rangeStart:   start,
-				rangeEnd:     end,
-			}
+		if r.completed {
+			pd.taskMap[i] = task
+		} else {
 			pd.taskCh <- task
 		}
-		if end < (totalBytes - 1) {
-			start = end + 1
-			continue
-		}
-		break
 	}
-	//t.tempFilename = getRangeTempFile(t.rangeStart, t.rangeEnd, pd.tempDir)
-	//// 先判断一下分块是不是存在，并且大小是需要下载的大小
-	//existFile, err := IsExistFile(t.tempFilename)
-	//if err != nil {
-	//	pd.errCh <- err
-	//	return
-	//} else if existFile != nil {
-	//	// 大小满足表示文件已经下载过，不必重复下载
-	//	if existFile.Size() == t.rangeEnd-t.rangeStart+1 {
-	//		pd.completeTask(t)
-	//		return
-	//	}
-	//}
 	return nil
 }
 
-func (pd *ChunkDownload) existRange() ([]Range, error) {
+func (pd *ChunkDownload) CalRange() ([]Range, error) {
 	dir, err := os.ReadDir(pd.tempDir)
 	if err != nil {
 		return nil, err
 	}
-	ranges := make([]Range, 0)
+	rangeMap := make(map[string]Range)
+	keys := make([]string, 0)
 	for _, entry := range dir {
 		name := entry.Name()
 		s, e := getRangeStartEnd(name)
 		if e-s > 0 {
-			fileInfo, err := IsExistFile(pd.tempDir + "/" + name)
+			fileInfo, err := entry.Info()
 			if err != nil {
 				return nil, err
 			}
-			if fileInfo != nil {
-				// 文件大小不一致，执行清理
-				if fileInfo.Size() != e-s+1 {
-					_ = os.Remove(pd.tempDir + "/" + name)
-				} else {
-					ranges = append(ranges, Range{start: s, end: e})
-				}
+			// 文件大小不一致，执行清理
+			if fileInfo.Size() != e-s+1 {
+				_ = os.Remove(pd.tempDir + "/" + name)
+			} else {
+				key := strconv.FormatInt(s, 10)
+				rangeMap[key] = Range{start: s, end: e, completed: true, fileName: name}
+				keys = append(keys, key)
 			}
 		} else {
 			_ = os.Remove(pd.tempDir + "/" + name)
 		}
 	}
+	sort.Strings(keys)
+
+	var start int64 = 0
+	ranges := make([]Range, 0)
+	for _, key := range keys {
+		r := rangeMap[key]
+		if r.start > start {
+			maxEnd := r.start - 1
+			start, ranges = pd.addRange(start, maxEnd, ranges)
+		}
+		ranges = append(ranges, r)
+		start = r.end + 1
+	}
+
+	if start < pd.totalBytes {
+		start, ranges = pd.addRange(start, pd.totalBytes, ranges)
+	}
+
 	return ranges, nil
+}
+
+func (pd *ChunkDownload) addRange(start int64, maxEnd int64, ranges []Range) (int64, []Range) {
+	for {
+		end := start + (pd.chunkSize - 1)
+		if end > maxEnd {
+			end = maxEnd
+		}
+		if end != start {
+			ranges = append(ranges, Range{start: start, end: end, completed: false, fileName: getRangeTempFile(start, end, pd.tempDir)})
+			start = end + 1
+		}
+		if end >= maxEnd {
+			break
+		}
+	}
+	return start, ranges
 }
 
 func (pd *ChunkDownload) getOutputFile() (io.Writer, error) {
@@ -389,11 +396,11 @@ func (pd *ChunkDownload) getOutputFile() (io.Writer, error) {
 		}
 	}
 	if pd.outputDirectory != "" && !filepath.IsAbs(pd.filename) {
-		err := os.MkdirAll(pd.outputDirectory, os.ModePerm)
-		if err != nil {
-			return nil, err
-		}
 		pd.filename = filepath.Join(pd.outputDirectory, pd.filename)
+	}
+	err := os.MkdirAll(filepath.Dir(pd.filename), os.ModePerm)
+	if err != nil {
+		return nil, err
 	}
 	return os.OpenFile(pd.filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 }
