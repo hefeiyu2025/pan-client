@@ -86,9 +86,13 @@ func (pd *ChunkDownload) ensure() error {
 		//pd.tempRootDir = os.TempDir()
 		pd.tempRootDir = "./tmp"
 	}
-	pd.tempDir = filepath.Join(pd.tempRootDir, Md5HashStr(filepath.Base(pd.filename)))
+	fullPath, err := filepath.Abs(pd.filename)
+	if err != nil {
+		return err
+	}
+	pd.tempDir = filepath.Join(pd.tempRootDir, Md5HashStr(fullPath))
 
-	err := os.MkdirAll(pd.tempDir, os.ModePerm)
+	err = os.MkdirAll(pd.tempDir, os.ModePerm)
 	if err != nil {
 		return err
 	}
@@ -167,12 +171,17 @@ type downloadTask struct {
 	index                int
 	rangeStart, rangeEnd int64
 	tempFilename         string
+	completed            bool
 	tempFile             *os.File
 }
 
 func (pd *ChunkDownload) handleTask(t *downloadTask, ctx ...context.Context) {
 	pd.wg.Add(1)
 	defer pd.wg.Done()
+	if t.completed {
+		pd.completeTask(t)
+		return
+	}
 
 	file, err := os.OpenFile(t.tempFilename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
@@ -265,10 +274,7 @@ func (pd *ChunkDownload) Do(ctx ...context.Context) error {
 		close(pd.wgDoneCh)
 	}()
 
-	err = pd.calTask()
-	if err != nil {
-		return err
-	}
+	go pd.calTask()
 
 	select {
 	case <-pd.wgDoneCh:
@@ -286,27 +292,23 @@ type Range struct {
 	fileName  string
 }
 
-func (pd *ChunkDownload) calTask() error {
+func (pd *ChunkDownload) calTask() {
 	ranges, err := pd.CalRange()
 	if err != nil {
-		return err
+		pd.errCh <- err
+		return
 	}
 	pd.lastIndex = len(ranges) - 1
 	for i, r := range ranges {
-
 		task := &downloadTask{
 			tempFilename: r.fileName,
 			index:        i,
 			rangeStart:   r.start,
 			rangeEnd:     r.end,
+			completed:    r.completed,
 		}
-		if r.completed {
-			pd.taskMap[i] = task
-		} else {
-			pd.taskCh <- task
-		}
+		pd.taskCh <- task
 	}
-	return nil
 }
 
 func (pd *ChunkDownload) CalRange() ([]Range, error) {

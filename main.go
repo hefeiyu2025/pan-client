@@ -21,7 +21,7 @@ func main() {
 		},
 		Concurrency: 1,
 		LocalPath:   "./zaijian",
-		ChunkSize:   2 * 1024 * 1024,
+		ChunkSize:   3 * 1024 * 1024,
 		DownloadCallback: func(localPath, localFile string) {
 			logger.Info(localPath, localFile)
 		},
