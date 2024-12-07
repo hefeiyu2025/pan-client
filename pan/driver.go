@@ -1,4 +1,4 @@
-package client
+package pan
 
 import (
 	"fmt"
@@ -403,7 +403,8 @@ func (pr *ProgressReader) NextChunk() (int64, int64) {
 	})
 	startSize := pr.uploaded
 	endSize := min(pr.totalSize, pr.uploaded+pr.chunkSize)
-	pr.currentSize = endSize
+	pr.currentSize = endSize - startSize
+	pr.currentUploaded = 0
 	return startSize, endSize
 }
 

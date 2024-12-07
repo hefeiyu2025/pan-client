@@ -2,8 +2,8 @@ package cloudreve
 
 import (
 	"fmt"
-	"github.com/hefeiyu2025/pan-client/client"
 	"github.com/hefeiyu2025/pan-client/internal"
+	"github.com/hefeiyu2025/pan-client/pan"
 	"github.com/imroc/req/v3"
 	logger "github.com/sirupsen/logrus"
 	"net/http"
@@ -24,10 +24,10 @@ type Cloudreve struct {
 	sessionClient *req.Client
 	defaultClient *req.Client
 	properties    *CloudreveProperties
-	client.PropertiesOperate
-	client.CacheOperate
-	client.CommonOperate
-	client.BaseOperate
+	pan.PropertiesOperate
+	pan.CacheOperate
+	pan.CommonOperate
+	pan.BaseOperate
 }
 
 type CloudreveProperties struct {
@@ -85,21 +85,21 @@ func (c *Cloudreve) Init() error {
 }
 
 func (c *Cloudreve) Drop() error {
-	return client.OnlyMsg("not support")
+	return pan.OnlyMsg("not support")
 }
 
-func (c *Cloudreve) Disk() (*client.DiskResp, error) {
+func (c *Cloudreve) Disk() (*pan.DiskResp, error) {
 	storageResp, err := c.userStorage()
 	if err != nil {
 		return nil, err
 	}
-	return &client.DiskResp{
+	return &pan.DiskResp{
 		Total: storageResp.Data.Total / 1024 / 1024,
 		Free:  storageResp.Data.Free / 1024 / 1024,
 		Used:  storageResp.Data.Used / 1024 / 1024,
 	}, nil
 }
-func (c *Cloudreve) List(req client.ListReq) ([]*client.PanObj, error) {
+func (c *Cloudreve) List(req pan.ListReq) ([]*pan.PanObj, error) {
 	if req.Dir.Path == "/" && req.Dir.Name == "" {
 		req.Dir.Id = "0"
 	}
@@ -113,9 +113,9 @@ func (c *Cloudreve) List(req client.ListReq) ([]*client.PanObj, error) {
 			logger.Error(e)
 			return nil, e
 		}
-		panObjs := make([]*client.PanObj, 0)
+		panObjs := make([]*pan.PanObj, 0)
 		for _, item := range directory.Data.Objects {
-			panObjs = append(panObjs, &client.PanObj{
+			panObjs = append(panObjs, &pan.PanObj{
 				Id:     item.ID,
 				Name:   item.Name,
 				Path:   item.Path,
@@ -128,19 +128,19 @@ func (c *Cloudreve) List(req client.ListReq) ([]*client.PanObj, error) {
 		return panObjs, nil
 	})
 	if err != nil {
-		return make([]*client.PanObj, 0), err
+		return make([]*pan.PanObj, 0), err
 	}
 	if exist {
-		objs, ok := panObjs.([]*client.PanObj)
+		objs, ok := panObjs.([]*pan.PanObj)
 		if ok {
 			return objs, nil
 		}
 	}
-	return make([]*client.PanObj, 0), nil
+	return make([]*pan.PanObj, 0), nil
 }
-func (c *Cloudreve) ObjRename(req client.ObjRenameReq) error {
+func (c *Cloudreve) ObjRename(req pan.ObjRenameReq) error {
 	if req.Obj.Id == "0" || req.Obj.Path == "/" {
-		return client.OnlyMsg("not support rename root path")
+		return pan.OnlyMsg("not support rename root path")
 	}
 	object := req.Obj
 	if object.Id == "" {
@@ -165,8 +165,8 @@ func (c *Cloudreve) ObjRename(req client.ObjRenameReq) error {
 	c.Del(cacheDirectoryPrefix + object.Parent.Id)
 	return nil
 }
-func (c *Cloudreve) BatchRename(req client.BatchRenameReq) error {
-	objs, err := c.List(client.ListReq{
+func (c *Cloudreve) BatchRename(req pan.BatchRenameReq) error {
+	objs, err := c.List(pan.ListReq{
 		Reload: true,
 		Dir:    req.Path,
 	})
@@ -175,7 +175,7 @@ func (c *Cloudreve) BatchRename(req client.BatchRenameReq) error {
 	}
 	for _, object := range objs {
 		if object.Type == "dir" {
-			err = c.BatchRename(client.BatchRenameReq{
+			err = c.BatchRename(pan.BatchRenameReq{
 				Path: object,
 				Func: req.Func,
 			})
@@ -186,7 +186,7 @@ func (c *Cloudreve) BatchRename(req client.BatchRenameReq) error {
 		newName := req.Func(object)
 
 		if newName != object.Name {
-			err = c.ObjRename(client.ObjRenameReq{
+			err = c.ObjRename(pan.ObjRenameReq{
 				Obj:     object,
 				NewName: newName,
 			})
@@ -197,7 +197,7 @@ func (c *Cloudreve) BatchRename(req client.BatchRenameReq) error {
 	}
 	return nil
 }
-func (c *Cloudreve) Mkdir(req client.MkdirReq) (*client.PanObj, error) {
+func (c *Cloudreve) Mkdir(req pan.MkdirReq) (*pan.PanObj, error) {
 	if req.NewPath == "" || filepath.Ext(req.NewPath) != "" {
 		// 不处理，直接返回
 		return nil, nil
@@ -223,36 +223,36 @@ func (c *Cloudreve) Mkdir(req client.MkdirReq) (*client.PanObj, error) {
 		rel, err := filepath.Rel(existPath, targetPath)
 		rel = strings.Replace(rel, "\\", "/", -1)
 		if err != nil {
-			return nil, client.OnlyError(err)
+			return nil, pan.OnlyError(err)
 		}
 		split := strings.Split(rel, "/")
 
 		_, err = c.createDirectory(existPath + "/" + split[0])
 		if err != nil {
-			return nil, client.OnlyError(err)
+			return nil, pan.OnlyError(err)
 		}
 		c.Del(cacheDirectoryPrefix + obj.Id)
 		return c.Mkdir(req)
 	}
 }
-func (c *Cloudreve) Move(req client.MovieReq) error {
-	sameSrc := make(map[string][]*client.PanObj)
+func (c *Cloudreve) Move(req pan.MovieReq) error {
+	sameSrc := make(map[string][]*pan.PanObj)
 	for _, item := range req.Items {
 		objs, ok := sameSrc[item.Path]
 		if ok {
 			objs = append(objs, item)
 			sameSrc[item.Path] = objs
 		} else {
-			sameSrc[item.Path] = []*client.PanObj{item}
+			sameSrc[item.Path] = []*pan.PanObj{item}
 		}
 	}
 	targetObj := req.TargetObj
 	if targetObj.Type == "file" {
-		return client.OnlyMsg("target is a file")
+		return pan.OnlyMsg("target is a file")
 	}
 	// 重新直接创建目标目录
 	if targetObj.Id == "" {
-		create, err := c.Mkdir(client.MkdirReq{
+		create, err := c.Mkdir(pan.MkdirReq{
 			NewPath: strings.Trim(targetObj.Path, "/") + "/" + targetObj.Name,
 		})
 		if err != nil {
@@ -294,7 +294,7 @@ func (c *Cloudreve) Move(req client.MovieReq) error {
 			},
 		})
 		if err != nil {
-			return client.OnlyError(err)
+			return pan.OnlyError(err)
 		}
 		reloadDirId[targetObj.Id] = true
 		for key, _ := range reloadDirId {
@@ -303,7 +303,7 @@ func (c *Cloudreve) Move(req client.MovieReq) error {
 	}
 	return nil
 }
-func (c *Cloudreve) Delete(req client.DeleteReq) error {
+func (c *Cloudreve) Delete(req pan.DeleteReq) error {
 	if len(req.Items) == 0 {
 		return nil
 	}
@@ -351,7 +351,7 @@ func (c *Cloudreve) Delete(req client.DeleteReq) error {
 	return nil
 }
 
-func (c *Cloudreve) UploadPath(req client.OneStepUploadPathReq) error {
+func (c *Cloudreve) UploadPath(req pan.OneStepUploadPathReq) error {
 	return c.BaseUploadPath(req, c.UploadFile)
 }
 
@@ -374,7 +374,7 @@ func (c *Cloudreve) uploadErrAfter(md5Key string, uploadedSize int64, session Up
 	c.Set(cacheSessionErrPrefix+md5Key, i+1)
 }
 
-func (c *Cloudreve) UploadFile(req client.OneStepUploadFileReq) error {
+func (c *Cloudreve) UploadFile(req pan.OneStepUploadFileReq) error {
 	stat, err := os.Stat(req.LocalFile)
 	if err != nil {
 		return err
@@ -388,13 +388,13 @@ func (c *Cloudreve) UploadFile(req client.OneStepUploadFileReq) error {
 	_, err = c.GetPanObj(remoteAllPath, true, c.List)
 	// 没有报错证明文件已经存在
 	if err == nil {
-		return client.CodeMsg(CodeObjectExist, remoteAllPath+" is exist")
+		return pan.CodeMsg(CodeObjectExist, remoteAllPath+" is exist")
 	}
-	_, err = c.Mkdir(client.MkdirReq{
+	_, err = c.Mkdir(pan.MkdirReq{
 		NewPath: remotePath,
 	})
 	if err != nil {
-		return client.MsgError(remotePath+" create error", err)
+		return pan.MsgError(remotePath+" create error", err)
 	}
 	md5Key := internal.Md5HashStr(remoteAllPath)
 	if !req.Resumable {
@@ -410,7 +410,7 @@ func (c *Cloudreve) UploadFile(req client.OneStepUploadFileReq) error {
 	data, exist, e := c.GetOrDefault(cacheSessionPrefix+md5Key, func() (interface{}, error) {
 		policy, exist := c.Get(cachePolicy)
 		if !exist {
-			return nil, client.OnlyMsg(cachePolicy + " is not exist")
+			return nil, pan.OnlyMsg(cachePolicy + " is not exist")
 		}
 		summary := policy.(*PolicySummary)
 		resp, e := c.fileUploadGetUploadSession(CreateUploadSessionReq{
@@ -476,11 +476,11 @@ func (c *Cloudreve) UploadFile(req client.OneStepUploadFileReq) error {
 	return nil
 }
 
-func (c *Cloudreve) DownloadPath(req client.OneStepDownloadPathReq) error {
+func (c *Cloudreve) DownloadPath(req pan.OneStepDownloadPathReq) error {
 	return c.BaseDownloadPath(req, c.List, c.DownloadFile)
 }
-func (c *Cloudreve) DownloadFile(req client.OneStepDownloadFileReq) error {
-	return c.BaseDownloadFile(req, c.defaultClient, func(req client.OneStepDownloadFileReq) (string, error) {
+func (c *Cloudreve) DownloadFile(req pan.OneStepDownloadFileReq) error {
+	return c.BaseDownloadFile(req, c.defaultClient, func(req pan.OneStepDownloadFileReq) (string, error) {
 		resp, err := c.fileCreateDownloadSession(req.RemoteFile.Id)
 		if err != nil {
 			return "", err
@@ -498,13 +498,13 @@ func (c *Cloudreve) DeleteShare() {
 }
 
 func init() {
-	client.RegisterDriver(client.Cloudreve, func() client.Driver {
+	pan.RegisterDriver(pan.Cloudreve, func() pan.Driver {
 		return &Cloudreve{
-			PropertiesOperate: client.PropertiesOperate{
-				DriverType: client.Cloudreve,
+			PropertiesOperate: pan.PropertiesOperate{
+				DriverType: pan.Cloudreve,
 			},
-			CacheOperate:  client.CacheOperate{DriverType: client.Cloudreve},
-			CommonOperate: client.CommonOperate{},
+			CacheOperate:  pan.CacheOperate{DriverType: pan.Cloudreve},
+			CommonOperate: pan.CommonOperate{},
 		}
 	})
 }

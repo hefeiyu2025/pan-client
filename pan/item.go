@@ -1,4 +1,4 @@
-package client
+package pan
 
 type Properties interface {
 	// OnlyImportProperties 仅仅定义一个接口来进行继承

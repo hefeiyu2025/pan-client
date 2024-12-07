@@ -1,7 +1,7 @@
 package cloudreve
 
 import (
-	"github.com/hefeiyu2025/pan-client/client"
+	"github.com/hefeiyu2025/pan-client/pan"
 	"github.com/imroc/req/v3"
 	"net/http"
 	"net/url"
@@ -9,29 +9,29 @@ import (
 	"time"
 )
 
-func funReturn(err error, response *req.Response, result Resp) (*Resp, client.DriverErrorInterface) {
+func funReturn(err error, response *req.Response, result Resp) (*Resp, pan.DriverErrorInterface) {
 	if err != nil {
-		return nil, client.OnlyError(err)
+		return nil, pan.OnlyError(err)
 	}
 	if response.IsErrorState() && result.Code != 0 {
-		return nil, client.CodeMsg(result.Code, result.Msg)
+		return nil, pan.CodeMsg(result.Code, result.Msg)
 	}
-	return &result, client.NoError()
+	return &result, pan.NoError()
 }
-func funReturnBySuccess[T any](err error, response *req.Response, errorResult Resp, successResult RespData[T]) (*RespData[T], client.DriverErrorInterface) {
+func funReturnBySuccess[T any](err error, response *req.Response, errorResult Resp, successResult RespData[T]) (*RespData[T], pan.DriverErrorInterface) {
 	if err != nil {
-		return nil, client.OnlyError(err)
+		return nil, pan.OnlyError(err)
 	}
 	if response.IsErrorState() {
-		return nil, client.CodeMsg(errorResult.Code, errorResult.Msg)
+		return nil, pan.CodeMsg(errorResult.Code, errorResult.Msg)
 	}
 	if successResult.Code != 0 {
-		return nil, client.CodeMsg(successResult.Code, successResult.Msg)
+		return nil, pan.CodeMsg(successResult.Code, successResult.Msg)
 	}
-	return &successResult, client.NoError()
+	return &successResult, pan.NoError()
 }
 
-func (c *Cloudreve) config() (*RespData[SiteConfig], client.DriverErrorInterface) {
+func (c *Cloudreve) config() (*RespData[SiteConfig], pan.DriverErrorInterface) {
 	r := c.sessionClient.R()
 	var successResult RespData[SiteConfig]
 	var errorResult Resp
@@ -40,13 +40,13 @@ func (c *Cloudreve) config() (*RespData[SiteConfig], client.DriverErrorInterface
 	//site/config
 	response, err := r.Get("/site/config")
 	if err != nil {
-		return nil, client.OnlyError(err)
+		return nil, pan.OnlyError(err)
 	}
 	if response.IsErrorState() {
-		return nil, client.CodeMsg(errorResult.Code, errorResult.Msg)
+		return nil, pan.CodeMsg(errorResult.Code, errorResult.Msg)
 	}
 	if successResult.Code != 0 {
-		return nil, client.CodeMsg(successResult.Code, successResult.Msg)
+		return nil, pan.CodeMsg(successResult.Code, successResult.Msg)
 	}
 	if !successResult.Data.User.Anonymous {
 		for _, cookie := range response.Cookies() {
@@ -57,12 +57,12 @@ func (c *Cloudreve) config() (*RespData[SiteConfig], client.DriverErrorInterface
 			}
 		}
 	} else {
-		return nil, client.OnlyMsg("session is expired")
+		return nil, pan.OnlyMsg("session is expired")
 	}
-	return &successResult, client.NoError()
+	return &successResult, pan.NoError()
 }
 
-func (c *Cloudreve) userStorage() (*RespData[Storage], client.DriverErrorInterface) {
+func (c *Cloudreve) userStorage() (*RespData[Storage], pan.DriverErrorInterface) {
 	r := c.sessionClient.R()
 	var successResult RespData[Storage]
 	var errorResult Resp
@@ -77,7 +77,7 @@ func (c *Cloudreve) userStorage() (*RespData[Storage], client.DriverErrorInterfa
 //		return Resp{}
 //	}
 
-func (c *Cloudreve) fileUploadGetUploadSession(req CreateUploadSessionReq) (*RespData[UploadCredential], client.DriverErrorInterface) {
+func (c *Cloudreve) fileUploadGetUploadSession(req CreateUploadSessionReq) (*RespData[UploadCredential], pan.DriverErrorInterface) {
 	r := c.sessionClient.R()
 	var successResult RespData[UploadCredential]
 	var errorResult Resp
@@ -89,7 +89,7 @@ func (c *Cloudreve) fileUploadGetUploadSession(req CreateUploadSessionReq) (*Res
 	return funReturnBySuccess(err, response, errorResult, successResult)
 }
 
-func (c *Cloudreve) fileUploadDeleteUploadSession(sessionId string) (*Resp, client.DriverErrorInterface) {
+func (c *Cloudreve) fileUploadDeleteUploadSession(sessionId string) (*Resp, pan.DriverErrorInterface) {
 	r := c.sessionClient.R()
 	var result Resp
 	r.SetSuccessResult(&result)
@@ -99,7 +99,7 @@ func (c *Cloudreve) fileUploadDeleteUploadSession(sessionId string) (*Resp, clie
 	return funReturn(err, response, result)
 }
 
-func (c *Cloudreve) fileUploadDeleteAllUploadSession() (*Resp, client.DriverErrorInterface) {
+func (c *Cloudreve) fileUploadDeleteAllUploadSession() (*Resp, pan.DriverErrorInterface) {
 	r := c.sessionClient.R()
 	var result Resp
 	r.SetSuccessResult(&result)
@@ -113,7 +113,7 @@ func (c *Cloudreve) fileUploadDeleteAllUploadSession() (*Resp, client.DriverErro
 //
 //}
 
-func (c *Cloudreve) fileCreateFile(path string) (*Resp, client.DriverErrorInterface) {
+func (c *Cloudreve) fileCreateFile(path string) (*Resp, pan.DriverErrorInterface) {
 	r := c.sessionClient.R()
 	var result Resp
 	r.SetSuccessResult(&result)
@@ -126,7 +126,7 @@ func (c *Cloudreve) fileCreateFile(path string) (*Resp, client.DriverErrorInterf
 	return funReturn(err, response, result)
 }
 
-func (c *Cloudreve) fileCreateDownloadSession(id string) (*RespData[string], client.DriverErrorInterface) {
+func (c *Cloudreve) fileCreateDownloadSession(id string) (*RespData[string], pan.DriverErrorInterface) {
 	r := c.sessionClient.R()
 	var successResult RespData[string]
 	var errorResult Resp
@@ -137,7 +137,7 @@ func (c *Cloudreve) fileCreateDownloadSession(id string) (*RespData[string], cli
 	return funReturnBySuccess(err, response, errorResult, successResult)
 }
 
-//func (c *Cloudreve) FilePreview(id string) (string,client.DriverErrorInterface) {
+//func (c *Cloudreve) FilePreview(id string) (string,pan.DriverErrorInterface) {
 //	r := c.sessionClient.R()
 //
 //
@@ -154,7 +154,7 @@ func (c *Cloudreve) fileCreateDownloadSession(id string) (*RespData[string], cli
 //
 //}
 
-func (c *Cloudreve) fileGetSource(req ItemReq) (*RespData[[]Sources], client.DriverErrorInterface) {
+func (c *Cloudreve) fileGetSource(req ItemReq) (*RespData[[]Sources], pan.DriverErrorInterface) {
 	r := c.sessionClient.R()
 	var successResult RespData[[]Sources]
 	var errorResult Resp
@@ -166,7 +166,7 @@ func (c *Cloudreve) fileGetSource(req ItemReq) (*RespData[[]Sources], client.Dri
 	return funReturnBySuccess(err, response, errorResult, successResult)
 }
 
-func (c *Cloudreve) fileArchive(req ItemReq) (*RespData[string], client.DriverErrorInterface) {
+func (c *Cloudreve) fileArchive(req ItemReq) (*RespData[string], pan.DriverErrorInterface) {
 	r := c.sessionClient.R()
 	var successResult RespData[string]
 	var errorResult Resp
@@ -177,7 +177,7 @@ func (c *Cloudreve) fileArchive(req ItemReq) (*RespData[string], client.DriverEr
 	response, err := r.Post("/file/archive")
 	return funReturnBySuccess(err, response, errorResult, successResult)
 }
-func (c *Cloudreve) createDirectory(path string) (*Resp, client.DriverErrorInterface) {
+func (c *Cloudreve) createDirectory(path string) (*Resp, pan.DriverErrorInterface) {
 	r := c.sessionClient.R()
 	var result Resp
 	r.SetSuccessResult(&result)
@@ -190,7 +190,7 @@ func (c *Cloudreve) createDirectory(path string) (*Resp, client.DriverErrorInter
 	return funReturn(err, response, result)
 }
 
-func (c *Cloudreve) listDirectory(path string) (*RespData[ObjectList], client.DriverErrorInterface) {
+func (c *Cloudreve) listDirectory(path string) (*RespData[ObjectList], pan.DriverErrorInterface) {
 	r := c.sessionClient.R()
 	var successResult RespData[ObjectList]
 	var errorResult Resp
@@ -201,7 +201,7 @@ func (c *Cloudreve) listDirectory(path string) (*RespData[ObjectList], client.Dr
 	return funReturnBySuccess(err, response, errorResult, successResult)
 }
 
-func (c *Cloudreve) objectDelete(req ItemReq) (*Resp, client.DriverErrorInterface) {
+func (c *Cloudreve) objectDelete(req ItemReq) (*Resp, pan.DriverErrorInterface) {
 	r := c.sessionClient.R()
 	var result Resp
 	r.SetSuccessResult(&result)
@@ -212,7 +212,7 @@ func (c *Cloudreve) objectDelete(req ItemReq) (*Resp, client.DriverErrorInterfac
 	return funReturn(err, response, result)
 }
 
-func (c *Cloudreve) objectMove(req ItemMoveReq) (*Resp, client.DriverErrorInterface) {
+func (c *Cloudreve) objectMove(req ItemMoveReq) (*Resp, pan.DriverErrorInterface) {
 	r := c.sessionClient.R()
 	var result Resp
 	r.SetSuccessResult(&result)
@@ -223,7 +223,7 @@ func (c *Cloudreve) objectMove(req ItemMoveReq) (*Resp, client.DriverErrorInterf
 	return funReturn(err, response, result)
 }
 
-func (c *Cloudreve) objectCopy(req ItemMoveReq) (*Resp, client.DriverErrorInterface) {
+func (c *Cloudreve) objectCopy(req ItemMoveReq) (*Resp, pan.DriverErrorInterface) {
 	r := c.sessionClient.R()
 	var result Resp
 	r.SetSuccessResult(&result)
@@ -234,7 +234,7 @@ func (c *Cloudreve) objectCopy(req ItemMoveReq) (*Resp, client.DriverErrorInterf
 	return funReturn(err, response, result)
 }
 
-func (c *Cloudreve) objectRename(req ItemRenameReq) (*Resp, client.DriverErrorInterface) {
+func (c *Cloudreve) objectRename(req ItemRenameReq) (*Resp, pan.DriverErrorInterface) {
 	r := c.sessionClient.R()
 	var result Resp
 	r.SetSuccessResult(&result)
@@ -245,7 +245,7 @@ func (c *Cloudreve) objectRename(req ItemRenameReq) (*Resp, client.DriverErrorIn
 	return funReturn(err, response, result)
 }
 
-func (c *Cloudreve) objectGetProperty(req ItemPropertyReq) (*RespData[ObjectProps], client.DriverErrorInterface) {
+func (c *Cloudreve) objectGetProperty(req ItemPropertyReq) (*RespData[ObjectProps], pan.DriverErrorInterface) {
 	r := c.sessionClient.R()
 	var errorResult Resp
 	var successResult RespData[ObjectProps]
@@ -260,7 +260,7 @@ func (c *Cloudreve) objectGetProperty(req ItemPropertyReq) (*RespData[ObjectProp
 	return funReturnBySuccess(err, response, errorResult, successResult)
 }
 
-func (c *Cloudreve) shareCreateShare(req ShareCreateReq) (*RespData[string], client.DriverErrorInterface) {
+func (c *Cloudreve) shareCreateShare(req ShareCreateReq) (*RespData[string], pan.DriverErrorInterface) {
 	r := c.sessionClient.R()
 	var successResult RespData[string]
 	var errorResult Resp
@@ -272,7 +272,7 @@ func (c *Cloudreve) shareCreateShare(req ShareCreateReq) (*RespData[string], cli
 	return funReturnBySuccess(err, response, errorResult, successResult)
 }
 
-func (c *Cloudreve) shareListShare() (*RespData[ShareList], client.DriverErrorInterface) {
+func (c *Cloudreve) shareListShare() (*RespData[ShareList], pan.DriverErrorInterface) {
 	r := c.sessionClient.R()
 	var successResult RespData[ShareList]
 	var errorResult Resp
@@ -283,7 +283,7 @@ func (c *Cloudreve) shareListShare() (*RespData[ShareList], client.DriverErrorIn
 	return funReturnBySuccess(err, response, errorResult, successResult)
 }
 
-func (c *Cloudreve) shareUpdateShare(req ShareUpdateReq) (*RespData[string], client.DriverErrorInterface) {
+func (c *Cloudreve) shareUpdateShare(req ShareUpdateReq) (*RespData[string], pan.DriverErrorInterface) {
 	r := c.sessionClient.R()
 	var successResult RespData[string]
 	var errorResult Resp
@@ -298,7 +298,7 @@ func (c *Cloudreve) shareUpdateShare(req ShareUpdateReq) (*RespData[string], cli
 	return funReturnBySuccess(err, response, errorResult, successResult)
 }
 
-func (c *Cloudreve) shareDeleteShare(id string) (*Resp, client.DriverErrorInterface) {
+func (c *Cloudreve) shareDeleteShare(id string) (*Resp, pan.DriverErrorInterface) {
 	r := c.sessionClient.R()
 	var result Resp
 	r.SetSuccessResult(&result)
@@ -308,7 +308,7 @@ func (c *Cloudreve) shareDeleteShare(id string) (*Resp, client.DriverErrorInterf
 	return funReturn(err, response, result)
 }
 
-func (c *Cloudreve) shareGetShare(id, password string) (*RespData[Share], client.DriverErrorInterface) {
+func (c *Cloudreve) shareGetShare(id, password string) (*RespData[Share], pan.DriverErrorInterface) {
 	r := c.defaultClient.R()
 	var successResult RespData[Share]
 	var errorResult Resp
@@ -322,7 +322,7 @@ func (c *Cloudreve) shareGetShare(id, password string) (*RespData[Share], client
 	return funReturnBySuccess(err, response, errorResult, successResult)
 }
 
-func (c *Cloudreve) shareGetShareDownload(id, path string) (*RespData[string], client.DriverErrorInterface) {
+func (c *Cloudreve) shareGetShareDownload(id, path string) (*RespData[string], pan.DriverErrorInterface) {
 	r := c.defaultClient.R()
 	var successResult RespData[string]
 	var errorResult Resp
@@ -336,7 +336,7 @@ func (c *Cloudreve) shareGetShareDownload(id, path string) (*RespData[string], c
 	return funReturnBySuccess(err, response, errorResult, successResult)
 }
 
-func (c *Cloudreve) shareListSharedFolder(id, path string) (*RespData[ObjectList], client.DriverErrorInterface) {
+func (c *Cloudreve) shareListSharedFolder(id, path string) (*RespData[ObjectList], pan.DriverErrorInterface) {
 	r := c.defaultClient.R()
 	var successResult RespData[ObjectList]
 	var errorResult Resp
@@ -348,7 +348,7 @@ func (c *Cloudreve) shareListSharedFolder(id, path string) (*RespData[ObjectList
 	return funReturnBySuccess(err, response, errorResult, successResult)
 }
 
-func (c *Cloudreve) ShareSearchSharedFolder(id, keyword, path string, searchType SearchType) (*RespData[ObjectList], client.DriverErrorInterface) {
+func (c *Cloudreve) ShareSearchSharedFolder(id, keyword, path string, searchType SearchType) (*RespData[ObjectList], pan.DriverErrorInterface) {
 	r := c.defaultClient.R()
 	var successResult RespData[ObjectList]
 	var errorResult Resp
@@ -362,7 +362,7 @@ func (c *Cloudreve) ShareSearchSharedFolder(id, keyword, path string, searchType
 	return funReturnBySuccess(err, response, errorResult, successResult)
 }
 
-func (c *Cloudreve) shareSearchShare(req ShareListReq) (*RespData[ShareList], client.DriverErrorInterface) {
+func (c *Cloudreve) shareSearchShare(req ShareListReq) (*RespData[ShareList], pan.DriverErrorInterface) {
 	r := c.defaultClient.R()
 	var successResult RespData[ShareList]
 	var errorResult Resp
@@ -379,7 +379,7 @@ func (c *Cloudreve) shareSearchShare(req ShareListReq) (*RespData[ShareList], cl
 	return funReturnBySuccess(err, response, errorResult, successResult)
 }
 
-func (c *Cloudreve) oneDriveCallback(sessionId string) (*Resp, client.DriverErrorInterface) {
+func (c *Cloudreve) oneDriveCallback(sessionId string) (*Resp, pan.DriverErrorInterface) {
 	r := c.sessionClient.R()
 	var result Resp
 	r.SetSuccessResult(&result)
@@ -392,10 +392,10 @@ func (c *Cloudreve) oneDriveCallback(sessionId string) (*Resp, client.DriverErro
 }
 
 // OneDriveUpload 分片上传 返回已上传的字节数和错误信息
-func (c *Cloudreve) oneDriveUpload(req OneDriveUploadReq) (int64, client.DriverErrorInterface) {
+func (c *Cloudreve) oneDriveUpload(req OneDriveUploadReq) (int64, pan.DriverErrorInterface) {
 	uploadedSize := req.UploadedSize
 
-	pr, err := client.NewProcessReader(req.LocalFile, req.ChunkSize, uploadedSize)
+	pr, err := pan.NewProcessReader(req.LocalFile, req.ChunkSize, uploadedSize)
 	if err != nil {
 		return uploadedSize, err
 	}
@@ -407,10 +407,10 @@ func (c *Cloudreve) oneDriveUpload(req OneDriveUploadReq) (int64, client.DriverE
 			SetHeader("Content-Range", "bytes "+strconv.FormatInt(startSize, 10)+"-"+strconv.FormatInt(endSize-1, 10)+"/"+strconv.FormatInt(pr.GetTotal(), 10)).
 			Put(req.UploadUrl)
 		if reqErr != nil {
-			return pr.GetUploaded(), client.OnlyError(reqErr)
+			return pr.GetUploaded(), pan.OnlyError(reqErr)
 		}
 		if response.IsErrorState() {
-			return pr.GetUploaded(), client.OnlyMsg(response.String())
+			return pr.GetUploaded(), pan.OnlyMsg(response.String())
 		}
 
 		if pr.IsFinish() {
@@ -418,5 +418,5 @@ func (c *Cloudreve) oneDriveUpload(req OneDriveUploadReq) (int64, client.DriverE
 		}
 	}
 	pr.Close()
-	return pr.GetUploaded(), client.NoError()
+	return pr.GetUploaded(), pan.NoError()
 }

@@ -32,7 +32,7 @@ var Config RootConfig
 var Viper *viper.Viper
 
 func InitConfig() {
-	configName := "pan-client"
+	configName := "pan-pan"
 	// 添加运行目录
 	v := viper.New()
 	Viper = v
