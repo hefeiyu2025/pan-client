@@ -29,11 +29,13 @@ type RootConfig struct {
 }
 
 var Config RootConfig
+var Viper *viper.Viper
 
 func InitConfig() {
 	configName := "pan-client"
 	// 添加运行目录
 	v := viper.New()
+	Viper = v
 	v.AddConfigPath(GetProcessPath())
 
 	// 添加当前目录

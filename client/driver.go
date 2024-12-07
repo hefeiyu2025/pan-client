@@ -5,7 +5,6 @@ import (
 	"github.com/hefeiyu2025/pan-client/internal"
 	"github.com/imroc/req/v3"
 	logger "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	"io"
 	"os"
 	"path/filepath"
@@ -251,14 +250,14 @@ func (c *PropertiesOperate) ReadConfig(config Properties) error {
 	c.m.RLock()
 	defer c.m.RUnlock()
 	internal.SetDefaultByTag(config)
-	return viper.UnmarshalKey(ViperDriverPrefix+string(c.DriverType), config)
+	return internal.Viper.UnmarshalKey(ViperDriverPrefix+string(c.DriverType), config)
 }
 
 func (c *PropertiesOperate) WriteConfig(config Properties) error {
 	c.m.Lock()
 	defer c.m.Unlock()
-	viper.Set(ViperDriverPrefix+string(c.DriverType), config)
-	return viper.WriteConfig()
+	internal.Viper.Set(ViperDriverPrefix+string(c.DriverType), config)
+	return internal.Viper.WriteConfig()
 }
 
 type CacheOperate struct {
