@@ -29,6 +29,7 @@ func main() {
 		Concurrency: 1,
 		LocalPath:   "./download",
 		ChunkSize:   10 * 1024 * 1024,
+		OverCover:   true,
 		DownloadCallback: func(localPath, localFile string) {
 			logger.Info(localPath, localFile)
 		},

@@ -463,34 +463,13 @@ func (c *Cloudreve) DownloadPath(req client.OneStepDownloadPathReq) error {
 	return c.BaseDownloadPath(req, c.List, c.DownloadFile)
 }
 func (c *Cloudreve) DownloadFile(req client.OneStepDownloadFileReq) error {
-	object := req.RemoteFile
-	if object.Type != "file" {
-		return client.OnlyMsg("only support download file")
-	}
-	logger.Infof("start download file %s", strings.Trim(object.Path, "/")+"/"+object.Name)
-	outputFile := req.LocalPath + "/" + object.Name
-	resp, err := c.fileCreateDownloadSession(object.Id)
-	if err != nil {
-		return err
-	}
-	data := resp.Data
-	e := internal.NewChunkDownload(data, c.defaultClient).
-		SetFileSize(int64(object.Size)).
-		SetChunkSize(req.ChunkSize).
-		SetConcurrency(req.Concurrency).
-		SetOutputFile(outputFile).
-		Do()
-	if e != nil {
-		logger.WithError(e).Errorf("error download file %s", strings.Trim(object.Path, "/")+"/"+object.Name)
-		return e
-	}
-
-	logger.Infof("end download file %s", strings.Trim(object.Path, "/")+"/"+object.Name)
-	if req.DownloadCallback != nil {
-		abs, _ := filepath.Abs(outputFile)
-		req.DownloadCallback(filepath.Dir(abs), abs)
-	}
-	return nil
+	return c.BaseDownloadFile(req, c.defaultClient, func(req client.OneStepDownloadFileReq) (string, error) {
+		resp, err := c.fileCreateDownloadSession(req.RemoteFile.Id)
+		if err != nil {
+			return "", err
+		}
+		return resp.Data, nil
+	})
 }
 
 func (c *Cloudreve) ShareList() {}

@@ -13,9 +13,34 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 var shutdown = false
+var runningMap = make(map[*ChunkDownload]bool)
+
+func InitChunkDownload() {
+	go func() {
+		for {
+			// 判断是否已经关闭
+			if shutdown {
+				// 等待所有的下载器完成
+				i := len(runningMap)
+				if i == 0 {
+					ExitWaitGroup.Done()
+					break
+				}
+				// 休眠
+				time.Sleep(500 * time.Millisecond)
+				continue
+			}
+			select {
+			case <-ChunkExitChan:
+				shutdown = true
+			}
+		}
+	}()
+}
 
 type ChunkDownload struct {
 	url             string
@@ -271,6 +296,7 @@ func (pd *ChunkDownload) Do(ctx ...context.Context) error {
 	if shutdown {
 		return errors.New("service is shutdown")
 	}
+	runningMap[pd] = true
 	err := pd.ensure()
 	if err != nil {
 		return err
@@ -289,13 +315,6 @@ func (pd *ChunkDownload) Do(ctx ...context.Context) error {
 		pd.totalBytes = resp.ContentLength
 	}
 
-	go func() {
-		select {
-		case <-ChunkExitChan:
-			shutdown = true
-		}
-	}()
-
 	pd.wg.Add(1)
 	go pd.mergeFile()
 	go func() {
@@ -308,13 +327,9 @@ func (pd *ChunkDownload) Do(ctx ...context.Context) error {
 	select {
 	case <-pd.wgDoneCh:
 		close(pd.doneCh)
-		if shutdown {
-			ExitWaitGroup.Done()
-		}
+		delete(runningMap, pd)
 	case err := <-pd.errCh:
-		if shutdown {
-			ExitWaitGroup.Done()
-		}
+		delete(runningMap, pd)
 		return err
 	}
 	return nil

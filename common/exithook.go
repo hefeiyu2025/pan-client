@@ -8,41 +8,48 @@ import (
 	"syscall"
 )
 
+var isPersonShutdown = false
+var personShutdownChan = make(chan struct{})
+
 func InitExitHook() {
 	shutdownChan := make(chan os.Signal, 1)
 	signal.Notify(shutdownChan, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		select {
 		case <-shutdownChan:
-			logger.Info("person exit hook")
 			signal.Stop(shutdownChan)
+			isPersonShutdown = true
 			for _, c := range internal.ExitChanList {
 				internal.ExitWaitGroup.Add(1)
 				c <- struct{}{}
 			}
 			internal.ExitWaitGroup.Wait()
-			logger.Info("person exit hook finish")
-			os.Exit(2)
+			personShutdownChan <- struct{}{}
 		case <-internal.ExitChan:
-			logger.Info("auto exit hook")
 			for _, c := range internal.ExitChanList {
 				internal.ExitWaitGroup.Add(1)
 				c <- struct{}{}
 			}
 			internal.ExitWaitGroup.Done()
-			logger.Info("auto exit hook finish")
 			return
 		}
 	}()
 }
 
 func Exit() {
+	if r := recover(); r != nil {
+		logger.Error(r)
+	}
+	// 要是人工点击了关闭，那退出方法就无效了
+	if isPersonShutdown {
+		select {
+		case <-personShutdownChan:
+			os.Exit(2)
+			return
+		}
+	}
 	internal.ExitWaitGroup.Add(1)
 	internal.ExitChan <- struct{}{}
 	internal.ExitWaitGroup.Wait()
-	if r := recover(); r != nil {
-		logger.Error(r)
-		os.Exit(1)
-	}
 	os.Exit(0)
 }

@@ -14,3 +14,4 @@ log:
 server:
     cache_file: "cache.dat"
     debug: true
+    download_tmp_path: "./tmp"

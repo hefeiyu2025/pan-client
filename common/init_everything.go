@@ -12,6 +12,7 @@ func init() {
 	internal.InitLog()
 	InitGob()
 	internal.InitCache()
+	internal.InitChunkDownload()
 	InitExitHook()
 }
 func InitGob() {

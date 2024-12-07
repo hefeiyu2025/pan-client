@@ -9,8 +9,9 @@ import (
 )
 
 type ServerConfig struct {
-	Debug     bool   `mapstructure:"debug" json:"debug" yaml:"debug" default:"false"`
-	CacheFile string `mapstructure:"cache_file" json:"cache_file"  yaml:"cache_file"`
+	Debug           bool   `mapstructure:"debug" json:"debug" yaml:"debug" default:"false"`
+	CacheFile       string `mapstructure:"cache_file" json:"cache_file"  yaml:"cache_file"`
+	DownloadTmpPath string `mapstructure:"download_tmp_path" json:"download_tmp_path"  yaml:"download_tmp_path"`
 }
 
 type LogConfig struct {

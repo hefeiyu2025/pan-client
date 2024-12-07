@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"github.com/hefeiyu2025/pan-client/internal"
+	"github.com/imroc/req/v3"
 	logger "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"io"
@@ -149,7 +150,8 @@ func (b *BaseOperate) BaseDownloadPath(req OneStepDownloadPathReq,
 	List func(req ListReq) ([]*PanObj, error),
 	DownloadFile func(req OneStepDownloadFileReq) error) error {
 	dir := req.RemotePath
-	logger.Infof("start download dir %s", strings.Trim(dir.Path, "/")+"/"+dir.Name)
+	remotePathName := strings.Trim(dir.Path, "/") + "/" + dir.Name
+	logger.Infof("start download dir %s -> %s", remotePathName, req.LocalPath)
 	if dir.Type != "dir" {
 		return OnlyMsg("only support download dir")
 	}
@@ -167,6 +169,7 @@ func (b *BaseOperate) BaseDownloadPath(req OneStepDownloadPathReq,
 				LocalPath:        req.LocalPath,
 				Concurrency:      req.Concurrency,
 				ChunkSize:        req.ChunkSize,
+				OverCover:        req.OverCover,
 				DownloadCallback: req.DownloadCallback,
 			}, List, DownloadFile)
 			if err != nil {
@@ -178,6 +181,7 @@ func (b *BaseOperate) BaseDownloadPath(req OneStepDownloadPathReq,
 				LocalPath:        req.LocalPath,
 				Concurrency:      req.Concurrency,
 				ChunkSize:        req.ChunkSize,
+				OverCover:        req.OverCover,
 				DownloadCallback: req.DownloadCallback,
 			})
 			if err != nil {
@@ -185,7 +189,50 @@ func (b *BaseOperate) BaseDownloadPath(req OneStepDownloadPathReq,
 			}
 		}
 	}
-	fmt.Println("end download dir", strings.Trim(dir.Path, "/")+"/"+dir.Name)
+	logger.Infof("end download dir %s -> %s", remotePathName, req.LocalPath)
+	return nil
+}
+
+type DownloadUrl func(req OneStepDownloadFileReq) (string, error)
+
+func (b *BaseOperate) BaseDownloadFile(req OneStepDownloadFileReq,
+	client *req.Client,
+	downloadUrl DownloadUrl) error {
+	object := req.RemoteFile
+	if object.Type != "file" {
+		return OnlyMsg("only support download file")
+	}
+	remoteFileName := strings.Trim(object.Path, "/") + "/" + object.Name
+	logger.Infof("start download file %s", remoteFileName)
+	outputFile := req.LocalPath + "/" + object.Name
+	fileInfo, err := internal.IsExistFile(outputFile)
+	if fileInfo != nil && err == nil {
+		if fileInfo.Size() == int64(object.Size) && !req.OverCover {
+			logger.Infof("end download file %s -> %s", remoteFileName, outputFile)
+			return nil
+		}
+	}
+	url, err := downloadUrl(req)
+	if err != nil {
+		return err
+	}
+	e := internal.NewChunkDownload(url, client).
+		SetFileSize(int64(object.Size)).
+		SetChunkSize(req.ChunkSize).
+		SetConcurrency(req.Concurrency).
+		SetOutputFile(outputFile).
+		SetTempRootDir(internal.Config.Server.DownloadTmpPath).
+		Do()
+	if e != nil {
+		logger.WithError(e).Errorf("error download file %s", remoteFileName)
+		return e
+	}
+
+	logger.Infof("end download file %s -> %s", remoteFileName, outputFile)
+	if req.DownloadCallback != nil {
+		abs, _ := filepath.Abs(outputFile)
+		req.DownloadCallback(filepath.Dir(abs), abs)
+	}
 	return nil
 }
 

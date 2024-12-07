@@ -77,6 +77,7 @@ type OneStepDownloadPathReq struct {
 	LocalPath        string
 	Concurrency      int
 	ChunkSize        int64
+	OverCover        bool
 	DownloadCallback DownloadCallback
 }
 
@@ -85,5 +86,6 @@ type OneStepDownloadFileReq struct {
 	LocalPath        string
 	Concurrency      int
 	ChunkSize        int64
+	OverCover        bool
 	DownloadCallback DownloadCallback
 }
