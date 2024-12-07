@@ -3,9 +3,11 @@ package internal
 import (
 	"crypto/md5"
 	"encoding/hex"
+	logger "github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // 文件处理
@@ -55,3 +57,24 @@ func Md5HashStr(str string) string {
 }
 
 // SHA1
+
+// Log
+
+func LogProgress(prefix, fileName string, startTime time.Time, thisOperated, operated, totalSize int64, mustLog bool) {
+	elapsed := time.Since(startTime).Seconds()
+	var speed float64
+	if elapsed == 0 {
+		speed = float64(thisOperated) / 1024
+	} else {
+		speed = float64(thisOperated) / 1024 / elapsed // KB/s
+	}
+
+	// 计算进度百分比
+	percent := float64(operated) / float64(totalSize) * 100
+	if Config.Server.Debug || mustLog {
+		logger.Infof("\r %s %s: %.2f%% (%d/%d bytes, %.2f KB/s)", prefix, fileName, percent, operated, totalSize, speed)
+	}
+	if operated == totalSize {
+		logger.Infof("%s %s: %.2f%% (%d/%d bytes, %.2f KB/s), cost %.2f s", prefix, fileName, percent, operated, totalSize, speed, elapsed)
+	}
+}

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/imroc/req/v3"
-	logger "github.com/sirupsen/logrus"
 	"io"
 	urlpkg "net/url"
 	"os"
@@ -504,7 +503,7 @@ func (p *progressWriter) updateDownloaded(downloaded int64) {
 }
 
 func (p *progressWriter) log() {
-	logProgress(p.fileName, p.startTime, p.thisDownloaded, p.downloaded, p.totalSize)
+	LogProgress("downloading", p.fileName, p.startTime, p.thisDownloaded, p.downloaded, p.totalSize, true)
 }
 
 type chunkProgressWriter struct {
@@ -515,7 +514,7 @@ type chunkProgressWriter struct {
 }
 
 func (c *chunkProgressWriter) log() {
-	logProgress(c.fileName, c.startTime, c.downloaded, c.downloaded, c.totalSize)
+	LogProgress("downloading", c.fileName, c.startTime, c.downloaded, c.downloaded, c.totalSize, false)
 }
 
 func (c *chunkProgressWriter) downloadCallback(info req.DownloadInfo) {
@@ -523,24 +522,5 @@ func (c *chunkProgressWriter) downloadCallback(info req.DownloadInfo) {
 		c.totalSize = info.Response.ContentLength
 		c.downloaded = info.DownloadedSize
 		c.log()
-	}
-}
-
-func logProgress(fileName string, startTime time.Time, thisDownloaded, downloaded, totalSize int64) {
-	elapsed := time.Since(startTime).Seconds()
-	var speed float64
-	if elapsed == 0 {
-		speed = float64(thisDownloaded) / 1024
-	} else {
-		speed = float64(thisDownloaded) / 1024 / elapsed // KB/s
-	}
-
-	// 计算进度百分比
-	percent := float64(downloaded) / float64(totalSize) * 100
-	if Config.Server.Debug {
-		logger.Infof("\r %s downloaded: %.2f%% (%d/%d bytes, %.2f KB/s)", fileName, percent, downloaded, totalSize, speed)
-	}
-	if downloaded == totalSize {
-		logger.Infof("\n %s downloaded: %.2f%% (%d/%d bytes, %.2f KB/s), cost %f s", fileName, percent, downloaded, totalSize, speed, elapsed)
 	}
 }

@@ -388,7 +388,7 @@ func (c *Cloudreve) UploadFile(req client.OneStepUploadFileReq) error {
 	_, err = c.GetPanObj(remoteAllPath, true, c.List)
 	// 没有报错证明文件已经存在
 	if err == nil {
-		return client.OnlyMsg(remoteAllPath + " is exist")
+		return client.CodeMsg(CodeObjectExist, remoteAllPath+" is exist")
 	}
 	_, err = c.Mkdir(client.MkdirReq{
 		NewPath: remotePath,
@@ -399,7 +399,7 @@ func (c *Cloudreve) UploadFile(req client.OneStepUploadFileReq) error {
 	md5Key := internal.Md5HashStr(remoteAllPath)
 	var session UploadCredential
 	if req.Resumable {
-		data, exist, err := c.GetOrDefault(cacheSessionPrefix+md5Key, func() (interface{}, error) {
+		data, exist, e := c.GetOrDefault(cacheSessionPrefix+md5Key, func() (interface{}, error) {
 			policy, exist := c.Get(cachePolicy)
 			if !exist {
 				return nil, client.OnlyMsg(cachePolicy + " is not exist")
@@ -413,12 +413,27 @@ func (c *Cloudreve) UploadFile(req client.OneStepUploadFileReq) error {
 				LastModified: stat.ModTime().UnixMilli(),
 			})
 			if e != nil {
+				if e.GetCode() == CodeConflictUploadOngoing {
+					// 要是存在重复的文件，直接删掉别的seesion再上传
+					_, _ = c.fileUploadDeleteAllUploadSession()
+					sResp, secE := c.fileUploadGetUploadSession(CreateUploadSessionReq{
+						Path:         "/" + remotePath,
+						Size:         uint64(stat.Size()),
+						Name:         remoteName,
+						PolicyID:     summary.ID,
+						LastModified: stat.ModTime().UnixMilli(),
+					})
+					if secE != nil {
+						return nil, secE
+					}
+					return sResp.Data, nil
+				}
 				return nil, e
 			}
 			return resp.Data, nil
 		})
-		if err != nil {
-			return err
+		if e != nil {
+			return e
 		}
 		if exist {
 			session = data.(UploadCredential)

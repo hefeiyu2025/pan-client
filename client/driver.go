@@ -322,6 +322,7 @@ func (c *CommonOperate) GetPanObj(path string, mustExist bool, list func(req Lis
 			continue
 		}
 		currentChildren, err := list(ListReq{
+			// 因为mustExist必须再重新来查一次
 			Reload: false,
 			Dir:    target,
 		})
@@ -336,9 +337,27 @@ func (c *CommonOperate) GetPanObj(path string, mustExist bool, list func(req Lis
 				break
 			}
 		}
+
 		// 如果必须存在且不存在，则返回错误
 		if mustExist && !exist {
-			return nil, OnlyMsg(fmt.Sprintf("%s not found", path))
+			currentChildren, err = list(ListReq{
+				// 因为mustExist必须再重新来查一次
+				Reload: false,
+				Dir:    target,
+			})
+			if err != nil {
+				return nil, OnlyError(err)
+			}
+			for _, file := range currentChildren {
+				if file.Name == pathStr {
+					target = file
+					exist = true
+					break
+				}
+			}
+			if !exist {
+				return nil, OnlyMsg(fmt.Sprintf("%s not found", path))
+			}
 		}
 
 		// 如果不需要必须存在且不存在，则跳出循环
@@ -366,17 +385,7 @@ func (pr *ProgressReader) Read(p []byte) (n int, err error) {
 	n, err = pr.readCloser.Read(p)
 	if n > 0 {
 		pr.currentUploaded += int64(n)
-		elapsed := time.Since(pr.startTime).Seconds()
-		var speed float64
-		if elapsed == 0 {
-			speed = float64(pr.currentUploaded) / 1024
-		} else {
-			speed = float64(pr.currentUploaded) / 1024 / elapsed // KB/s
-		}
-
-		// 计算进度百分比
-		percent := float64(pr.uploaded+pr.currentUploaded) / float64(pr.totalSize) * 100
-		logger.Infof("\ruploading: %.2f%% (%d/%d bytes, %.2f KB/s)", percent, pr.uploaded+pr.currentUploaded, pr.totalSize, speed)
+		uploaded := pr.uploaded + pr.currentUploaded
 		// 相等即已经处理完毕
 		if pr.currentSize == pr.currentUploaded {
 			pr.uploaded += pr.currentSize
@@ -384,6 +393,7 @@ func (pr *ProgressReader) Read(p []byte) (n int, err error) {
 		if pr.uploaded == pr.totalSize {
 			pr.finish = true
 		}
+		internal.LogProgress("uploading", pr.file.Name(), pr.startTime, pr.currentUploaded, uploaded, pr.totalSize, false)
 	}
 	return n, err
 }
@@ -399,11 +409,9 @@ func (pr *ProgressReader) NextChunk() (int64, int64) {
 }
 
 func (pr *ProgressReader) Close() {
-	name := pr.file.Name()
 	if pr.file != nil {
 		pr.file.Close()
 	}
-	logger.Infof("file:%s uploaded:%d,total:%d,%.2f%%", name, pr.uploaded, pr.totalSize, float64(pr.uploaded)/float64(pr.totalSize)*100)
 }
 func (pr *ProgressReader) GetTotal() int64 {
 	return pr.totalSize
