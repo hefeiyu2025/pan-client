@@ -397,54 +397,56 @@ func (c *Cloudreve) UploadFile(req client.OneStepUploadFileReq) error {
 		return client.MsgError(remotePath+" create error", err)
 	}
 	md5Key := internal.Md5HashStr(remoteAllPath)
-	var session UploadCredential
-	if req.Resumable {
-		data, exist, e := c.GetOrDefault(cacheSessionPrefix+md5Key, func() (interface{}, error) {
-			policy, exist := c.Get(cachePolicy)
-			if !exist {
-				return nil, client.OnlyMsg(cachePolicy + " is not exist")
-			}
-			summary := policy.(*PolicySummary)
-			resp, e := c.fileUploadGetUploadSession(CreateUploadSessionReq{
-				Path:         "/" + remotePath,
-				Size:         uint64(stat.Size()),
-				Name:         remoteName,
-				PolicyID:     summary.ID,
-				LastModified: stat.ModTime().UnixMilli(),
-			})
-			if e != nil {
-				if e.GetCode() == CodeConflictUploadOngoing {
-					// 要是存在重复的文件，直接删掉别的seesion再上传
-					_, _ = c.fileUploadDeleteAllUploadSession()
-					sResp, secE := c.fileUploadGetUploadSession(CreateUploadSessionReq{
-						Path:         "/" + remotePath,
-						Size:         uint64(stat.Size()),
-						Name:         remoteName,
-						PolicyID:     summary.ID,
-						LastModified: stat.ModTime().UnixMilli(),
-					})
-					if secE != nil {
-						return nil, secE
-					}
-					return sResp.Data, nil
-				}
-				return nil, e
-			}
-			return resp.Data, nil
-		})
-		if e != nil {
-			return e
-		}
-		if exist {
-			session = data.(UploadCredential)
-		}
+	if !req.Resumable {
+		c.Del(cacheSessionPrefix + md5Key)
+		c.Del(cacheChunkPrefix + md5Key)
+		c.Del(cacheSessionErrPrefix + md5Key)
 	}
 	var uploadedSize int64 = 0
-	if req.Resumable {
-		if obj, exist := c.Get(cacheChunkPrefix + md5Key); exist {
-			uploadedSize = obj.(int64)
-		}
+	if obj, exist := c.Get(cacheChunkPrefix + md5Key); exist {
+		uploadedSize = obj.(int64)
 	}
+	var session UploadCredential
+	data, exist, e := c.GetOrDefault(cacheSessionPrefix+md5Key, func() (interface{}, error) {
+		policy, exist := c.Get(cachePolicy)
+		if !exist {
+			return nil, client.OnlyMsg(cachePolicy + " is not exist")
+		}
+		summary := policy.(*PolicySummary)
+		resp, e := c.fileUploadGetUploadSession(CreateUploadSessionReq{
+			Path:         "/" + remotePath,
+			Size:         uint64(stat.Size()),
+			Name:         remoteName,
+			PolicyID:     summary.ID,
+			LastModified: stat.ModTime().UnixMilli(),
+		})
+		if e != nil {
+			if e.GetCode() == CodeConflictUploadOngoing {
+				// 要是存在重复的文件，直接删掉别的seesion再上传
+				_, _ = c.fileUploadDeleteAllUploadSession()
+				sResp, secE := c.fileUploadGetUploadSession(CreateUploadSessionReq{
+					Path:         "/" + remotePath,
+					Size:         uint64(stat.Size()),
+					Name:         remoteName,
+					PolicyID:     summary.ID,
+					LastModified: stat.ModTime().UnixMilli(),
+				})
+				if secE != nil {
+					return nil, secE
+				}
+				return sResp.Data, nil
+			}
+			return nil, e
+		}
+		return resp.Data, nil
+	})
+	if e != nil {
+		return e
+	}
+	if exist {
+		session = data.(UploadCredential)
+	}
+
 	uploadedSize, err = c.oneDriveUpload(OneDriveUploadReq{
 		UploadUrl:    session.UploadURLs[0],
 		LocalFile:    req.LocalFile,

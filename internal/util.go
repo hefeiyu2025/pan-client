@@ -27,7 +27,7 @@ func IsEmptyDir(dirPath string) (bool, error) {
 	return false, err
 }
 
-func GetWordPath() string {
+func GetWorkPath() string {
 	workDir, _ := os.Getwd()
 	return workDir
 }

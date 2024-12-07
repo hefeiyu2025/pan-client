@@ -407,7 +407,7 @@ func (c *Cloudreve) oneDriveUpload(req OneDriveUploadReq) (int64, client.DriverE
 			SetHeader("Content-Range", "bytes "+strconv.FormatInt(startSize, 10)+"-"+strconv.FormatInt(endSize-1, 10)+"/"+strconv.FormatInt(pr.GetTotal(), 10)).
 			Put(req.UploadUrl)
 		if reqErr != nil {
-			return pr.GetUploaded(), client.OnlyError(err)
+			return pr.GetUploaded(), client.OnlyError(reqErr)
 		}
 		if response.IsErrorState() {
 			return pr.GetUploaded(), client.OnlyMsg(response.String())

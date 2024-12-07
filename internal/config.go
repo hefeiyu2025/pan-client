@@ -33,39 +33,38 @@ var Config RootConfig
 func InitConfig() {
 	configName := "pan-client"
 	// 添加运行目录
-
-	viper.AddConfigPath(GetProcessPath())
+	v := viper.New()
+	v.AddConfigPath(GetProcessPath())
 
 	// 添加当前目录
-	viper.AddConfigPath(GetWordPath())
-	viper.SetConfigName(configName)
+	v.AddConfigPath(GetWorkPath())
+	v.SetConfigName(configName)
 	SetDefaultByTag(&Config)
-	if err := viper.ReadInConfig(); err != nil { // 读取配置文件
+	if err := v.ReadInConfig(); err != nil { // 读取配置文件
 		// 使用类型断言检查是否为 *os.PathError 类型
 		var pathErr viper.ConfigFileNotFoundError
 		if errors.As(err, &pathErr) {
-			v := reflect.ValueOf(Config)
-			for i := 0; i < v.NumField(); i++ {
-				field := v.Field(i)
+			val := reflect.ValueOf(Config)
+			for i := 0; i < val.NumField(); i++ {
 				// 获取字段名
-				name := v.Type().Field(i).Name
+				name := val.Type().Field(i).Tag.Get("mapstructure")
 				// 获取字段值
-				value := field.Interface()
-				viper.SetDefault(name, value)
+				value := val.Field(i).Interface()
+				v.SetDefault(name, value)
 			}
-			err = viper.WriteConfigAs(GetWordPath() + "/" + configName + ".yaml")
+			err = v.WriteConfigAs(GetWorkPath() + "/" + configName + ".yaml")
 			if err != nil {
 				panic(err)
 			} else {
 				// 重新读取已经写入的文件
-				_ = viper.ReadInConfig()
+				_ = v.ReadInConfig()
 			}
 		} else {
 			panic(err)
 		}
 	}
 
-	if err := viper.Unmarshal(&Config); err != nil { // 解码配置文件到结构体
+	if err := v.Unmarshal(&Config); err != nil { // 解码配置文件到结构体
 		panic(err)
 	}
 }
