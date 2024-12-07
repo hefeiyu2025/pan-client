@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/imroc/req/v3"
+	logger "github.com/sirupsen/logrus"
 	"io"
 	urlpkg "net/url"
 	"os"
@@ -62,6 +63,7 @@ type ChunkDownload struct {
 	taskNotifyCh    chan *downloadTask
 	mu              sync.Mutex
 	lastIndex       int
+	pw              *progressWriter
 }
 
 func NewChunkDownload(url string, client *req.Client) *ChunkDownload {
@@ -131,6 +133,12 @@ func (pd *ChunkDownload) ensure() error {
 	pd.errCh = make(chan error)
 	pd.taskMap = make(map[int]*downloadTask)
 	pd.taskNotifyCh = make(chan *downloadTask)
+
+	pd.pw = &progressWriter{
+		totalSize: pd.totalBytes,
+		fileName:  pd.filename,
+		startTime: time.Now(),
+	}
 	return nil
 }
 
@@ -196,11 +204,11 @@ func getRangeStartEnd(filename string) (int64, int64) {
 }
 
 type downloadTask struct {
-	index                int
-	rangeStart, rangeEnd int64
-	tempFilename         string
-	completed            bool
-	tempFile             *os.File
+	index                           int
+	rangeStart, rangeEnd, totalSize int64
+	tempFilename                    string
+	completed                       bool
+	tempFile                        *os.File
 }
 
 func (pd *ChunkDownload) handleTask(t *downloadTask, ctx ...context.Context) {
@@ -210,6 +218,7 @@ func (pd *ChunkDownload) handleTask(t *downloadTask, ctx ...context.Context) {
 		return
 	}
 	if t.completed {
+		pd.pw.updateDownloaded(t.totalSize)
 		pd.completeTask(t)
 		return
 	}
@@ -219,9 +228,14 @@ func (pd *ChunkDownload) handleTask(t *downloadTask, ctx ...context.Context) {
 		pd.errCh <- err
 		return
 	}
+	cpr := &chunkProgressWriter{
+		startTime: time.Now(),
+		fileName:  t.tempFilename,
+	}
 	resp, err := pd.client.R().
 		SetHeader("Range", fmt.Sprintf("bytes=%d-%d", t.rangeStart, t.rangeEnd)).
 		SetOutput(file).
+		SetDownloadCallback(cpr.downloadCallback).
 		Get(pd.url)
 	if err != nil {
 		pd.errCh <- err
@@ -232,6 +246,7 @@ func (pd *ChunkDownload) handleTask(t *downloadTask, ctx ...context.Context) {
 		return
 	}
 	t.tempFile = file
+	pd.pw.updateDownloading(t.totalSize)
 	pd.completeTask(t)
 }
 
@@ -296,7 +311,7 @@ func (pd *ChunkDownload) Do(ctx ...context.Context) error {
 	if shutdown {
 		return errors.New("service is shutdown")
 	}
-	runningMap[pd] = true
+
 	err := pd.ensure()
 	if err != nil {
 		return err
@@ -314,6 +329,8 @@ func (pd *ChunkDownload) Do(ctx ...context.Context) error {
 		}
 		pd.totalBytes = resp.ContentLength
 	}
+
+	runningMap[pd] = true
 
 	pd.wg.Add(1)
 	go pd.mergeFile()
@@ -359,6 +376,7 @@ func (pd *ChunkDownload) calTask() {
 			rangeStart:   r.start,
 			rangeEnd:     r.end,
 			completed:    r.completed,
+			totalSize:    r.end - r.start + 1,
 		}
 		pd.taskCh <- task
 	}
@@ -407,7 +425,7 @@ func (pd *ChunkDownload) CalRange() ([]Range, error) {
 	}
 
 	if start < pd.totalBytes {
-		start, ranges = pd.addRange(start, pd.totalBytes, ranges)
+		start, ranges = pd.addRange(start, pd.totalBytes-1, ranges)
 	}
 
 	return ranges, nil
@@ -459,4 +477,70 @@ func (pd *ChunkDownload) getOutputFile() (io.Writer, error) {
 		return nil, err
 	}
 	return os.OpenFile(pd.filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+}
+
+type progressWriter struct {
+	downloaded     int64
+	thisDownloaded int64
+	totalSize      int64
+	fileName       string
+	startTime      time.Time
+	m              sync.Mutex
+}
+
+func (p *progressWriter) updateDownloading(downloaded int64) {
+	p.m.Lock()
+	defer p.m.Unlock()
+	p.thisDownloaded += downloaded
+	p.downloaded += downloaded
+	p.log()
+}
+
+func (p *progressWriter) updateDownloaded(downloaded int64) {
+	p.m.Lock()
+	defer p.m.Unlock()
+	p.downloaded += downloaded
+	p.log()
+}
+
+func (p *progressWriter) log() {
+	logProgress(p.fileName, p.startTime, p.thisDownloaded, p.downloaded, p.totalSize)
+}
+
+type chunkProgressWriter struct {
+	downloaded int64
+	totalSize  int64
+	startTime  time.Time
+	fileName   string
+}
+
+func (c *chunkProgressWriter) log() {
+	logProgress(c.fileName, c.startTime, c.downloaded, c.downloaded, c.totalSize)
+}
+
+func (c *chunkProgressWriter) downloadCallback(info req.DownloadInfo) {
+	if info.Response.Response != nil {
+		c.totalSize = info.Response.ContentLength
+		c.downloaded = info.DownloadedSize
+		c.log()
+	}
+}
+
+func logProgress(fileName string, startTime time.Time, thisDownloaded, downloaded, totalSize int64) {
+	elapsed := time.Since(startTime).Seconds()
+	var speed float64
+	if elapsed == 0 {
+		speed = float64(thisDownloaded) / 1024
+	} else {
+		speed = float64(thisDownloaded) / 1024 / elapsed // KB/s
+	}
+
+	// 计算进度百分比
+	percent := float64(downloaded) / float64(totalSize) * 100
+	if Config.Server.Debug {
+		logger.Infof("\r %s downloaded: %.2f%% (%d/%d bytes, %.2f KB/s)", fileName, percent, downloaded, totalSize, speed)
+	}
+	if downloaded == totalSize {
+		logger.Infof("\n %s downloaded: %.2f%% (%d/%d bytes, %.2f KB/s), cost %f s", fileName, percent, downloaded, totalSize, speed, elapsed)
+	}
 }

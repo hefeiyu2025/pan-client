@@ -31,9 +31,7 @@ func InitLog() {
 			MaxAge:     logConfig.MaxAge,   //days
 			Compress:   logConfig.Compress, // disabled by default
 		}
-		if Config.Server.Debug {
-			w = io.MultiWriter(os.Stdout, w)
-		}
+		w = io.MultiWriter(os.Stdout, w)
 		logrus.SetOutput(w)
 	}
 }
