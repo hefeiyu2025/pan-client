@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/imroc/req/v3"
 	"io"
@@ -13,6 +14,8 @@ import (
 	"strings"
 	"sync"
 )
+
+var shutdown = false
 
 type ChunkDownload struct {
 	url             string
@@ -83,8 +86,8 @@ func (pd *ChunkDownload) ensure() error {
 		pd.chunkSize = 1024 * 1024 * 10 // 10MB
 	}
 	if pd.tempRootDir == "" {
-		//pd.tempRootDir = os.TempDir()
-		pd.tempRootDir = "./tmp"
+		pd.tempRootDir = os.TempDir()
+		//pd.tempRootDir = "./tmp"
 	}
 	fullPath, err := filepath.Abs(pd.filename)
 	if err != nil {
@@ -178,6 +181,9 @@ type downloadTask struct {
 func (pd *ChunkDownload) handleTask(t *downloadTask, ctx ...context.Context) {
 	pd.wg.Add(1)
 	defer pd.wg.Done()
+	if shutdown {
+		return
+	}
 	if t.completed {
 		pd.completeTask(t)
 		return
@@ -192,7 +198,6 @@ func (pd *ChunkDownload) handleTask(t *downloadTask, ctx ...context.Context) {
 		SetHeader("Range", fmt.Sprintf("bytes=%d-%d", t.rangeStart, t.rangeEnd)).
 		SetOutput(file).
 		Get(pd.url)
-
 	if err != nil {
 		pd.errCh <- err
 		return
@@ -207,6 +212,10 @@ func (pd *ChunkDownload) handleTask(t *downloadTask, ctx ...context.Context) {
 
 func (pd *ChunkDownload) startWorker(ctx ...context.Context) {
 	for {
+		if shutdown {
+			pd.errCh <- errors.New("service is shutdown")
+			return
+		}
 		select {
 		case t := <-pd.taskCh:
 			pd.handleTask(t, ctx...)
@@ -224,6 +233,9 @@ func (pd *ChunkDownload) mergeFile() {
 		return
 	}
 	for i := 0; ; i++ {
+		if shutdown {
+			return
+		}
 		task := pd.popTask(i)
 		tempFile, err := os.Open(task.tempFilename)
 		if err != nil {
@@ -248,7 +260,17 @@ func (pd *ChunkDownload) mergeFile() {
 	}
 }
 
+func (pd *ChunkDownload) interruptSignalWaiter() {
+	select {
+	case <-ChunkExitChan:
+		shutdown = true
+	}
+}
+
 func (pd *ChunkDownload) Do(ctx ...context.Context) error {
+	if shutdown {
+		return errors.New("service is shutdown")
+	}
 	err := pd.ensure()
 	if err != nil {
 		return err
@@ -267,6 +289,13 @@ func (pd *ChunkDownload) Do(ctx ...context.Context) error {
 		pd.totalBytes = resp.ContentLength
 	}
 
+	go func() {
+		select {
+		case <-ChunkExitChan:
+			shutdown = true
+		}
+	}()
+
 	pd.wg.Add(1)
 	go pd.mergeFile()
 	go func() {
@@ -279,7 +308,13 @@ func (pd *ChunkDownload) Do(ctx ...context.Context) error {
 	select {
 	case <-pd.wgDoneCh:
 		close(pd.doneCh)
+		if shutdown {
+			ExitWaitGroup.Done()
+		}
 	case err := <-pd.errCh:
+		if shutdown {
+			ExitWaitGroup.Done()
+		}
 		return err
 	}
 	return nil
@@ -300,6 +335,9 @@ func (pd *ChunkDownload) calTask() {
 	}
 	pd.lastIndex = len(ranges) - 1
 	for i, r := range ranges {
+		if shutdown {
+			break
+		}
 		task := &downloadTask{
 			tempFilename: r.fileName,
 			index:        i,
@@ -316,8 +354,8 @@ func (pd *ChunkDownload) CalRange() ([]Range, error) {
 	if err != nil {
 		return nil, err
 	}
-	rangeMap := make(map[string]Range)
-	keys := make([]string, 0)
+	rangeMap := make(map[int64]Range)
+	keys := make([]int64, 0)
 	for _, entry := range dir {
 		name := entry.Name()
 		s, e := getRangeStartEnd(name)
@@ -330,15 +368,16 @@ func (pd *ChunkDownload) CalRange() ([]Range, error) {
 			if fileInfo.Size() != e-s+1 {
 				_ = os.Remove(pd.tempDir + "/" + name)
 			} else {
-				key := strconv.FormatInt(s, 10)
-				rangeMap[key] = Range{start: s, end: e, completed: true, fileName: name}
-				keys = append(keys, key)
+				rangeMap[s] = Range{start: s, end: e, completed: true, fileName: filepath.Join(pd.tempDir, name)}
+				keys = append(keys, s)
 			}
 		} else {
 			_ = os.Remove(pd.tempDir + "/" + name)
 		}
 	}
-	sort.Strings(keys)
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
 
 	var start int64 = 0
 	ranges := make([]Range, 0)

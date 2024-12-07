@@ -13,6 +13,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	//err = driver.UploadPath(client.OneStepUploadPathReq{
+	//	LocalPath:   "D:\\download\\170",
+	//	RemotePath:  "/1734",
+	//	Resumable:   true,
+	//	SkipFileErr: false,
+	//	SuccessDel:  false,
+	//})
 	err = driver.DownloadPath(client.OneStepDownloadPathReq{
 		RemotePath: &client.PanObj{
 			Name: "再見枕邊人6",
@@ -20,8 +27,8 @@ func main() {
 			Type: "dir",
 		},
 		Concurrency: 1,
-		LocalPath:   "./zaijian",
-		ChunkSize:   3 * 1024 * 1024,
+		LocalPath:   "./download",
+		ChunkSize:   10 * 1024 * 1024,
 		DownloadCallback: func(localPath, localFile string) {
 			logger.Info(localPath, localFile)
 		},

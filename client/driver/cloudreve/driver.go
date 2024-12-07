@@ -481,6 +481,7 @@ func (c *Cloudreve) DownloadFile(req client.OneStepDownloadFileReq) error {
 		SetOutputFile(outputFile).
 		Do()
 	if e != nil {
+		logger.WithError(e).Errorf("error download file %s", strings.Trim(object.Path, "/")+"/"+object.Name)
 		return e
 	}
 

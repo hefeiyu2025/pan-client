@@ -3,6 +3,7 @@ driver:
         url: https://pan.huang1111.cn
         session: MTczMzMwMjA5M3xOd3dBTkVGTVZsVXpWelZVV1RkRFJWUkVRa3BJVVZNM1NsTkJTRVUxU1ZrM1QwSkpWbFJSVjBsVVNqSkVXakpMUzFsTVZ6TkhNMUU9fO2sUUWl2Z-SXN5GvmJOzs109Z7cTwkeA02uIEUUkaZV
         refresh_time: 1733302097028
+        chunk_size: 1048576
 log:
     compress: false
     enable: true
@@ -11,5 +12,5 @@ log:
     max_backups: 30
     max_size: 50
 server:
-    cache_file: ""
+    cache_file: "cache.dat"
     debug: true
