@@ -127,7 +127,7 @@ func LogProgress(prefix, fileName string, startTime time.Time, thisOperated, ope
 	// 计算进度百分比
 	percent := float64(operated) / float64(totalSize) * 100
 	if Config.Server.Debug {
-		logger.Debug("%s %s: %.2f%% (%d/%d bytes, %.2f KB/s)", prefix, fileName, percent, operated, totalSize, speed)
+		logger.Debugf("%s %s: %.2f%% (%d/%d bytes, %.2f KB/s)", prefix, fileName, percent, operated, totalSize, speed)
 	}
 	if mustLog {
 		logger.Infof("%s %s: %.2f%% (%d/%d bytes, %.2f KB/s)", prefix, fileName, percent, operated, totalSize, speed)
