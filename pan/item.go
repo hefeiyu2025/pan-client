@@ -79,6 +79,10 @@ type DownloadPathReq struct {
 	ChunkSize        int64
 	OverCover        bool
 	SkipFileErr      bool
+	IgnorePaths      []string
+	IgnoreFiles      []string
+	Extensions       []string
+	IgnoreExtensions []string
 	DownloadCallback DownloadCallback
 }
 
