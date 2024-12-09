@@ -44,12 +44,10 @@ func Exit() {
 	if isPersonShutdown {
 		select {
 		case <-personShutdownChan:
-			os.Exit(2)
 			return
 		}
 	}
 	internal.ExitWaitGroup.Add(1)
 	internal.ExitChan <- struct{}{}
 	internal.ExitWaitGroup.Wait()
-	os.Exit(0)
 }

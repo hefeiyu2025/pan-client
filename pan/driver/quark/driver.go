@@ -432,6 +432,7 @@ func (q *Quark) UploadFile(req pan.UploadFileReq) error {
 		return err
 	}
 	if finish.Data.Finish {
+		logger.Infof("upload fast success %s", req.LocalFile)
 		// 上传成功则移除文件了
 		if req.SuccessDel {
 			_ = os.Remove(req.LocalFile)
@@ -469,6 +470,12 @@ func (q *Quark) UploadFile(req pan.UploadFileReq) error {
 			return err
 		}
 		if m == "finish" {
+			logger.Infof("upload success:%s", req.LocalFile)
+			// 上传成功则移除文件了
+			if req.SuccessDel {
+				_ = os.Remove(req.LocalFile)
+				logger.Infof("delete success   %s", req.LocalFile)
+			}
 			return nil
 		}
 		md5s = append(md5s, m)
