@@ -258,6 +258,10 @@ func (b *BaseOperate) BaseDownloadFile(req DownloadFileReq,
 	fileInfo, err := internal.IsExistFile(outputFile)
 	if fileInfo != nil && err == nil {
 		if fileInfo.Size() == object.Size && !req.OverCover {
+			if req.DownloadCallback != nil {
+				abs, _ := filepath.Abs(outputFile)
+				req.DownloadCallback(filepath.Dir(abs), abs)
+			}
 			logger.Infof("end download file %s -> %s", remoteFileName, outputFile)
 			return nil
 		}
