@@ -2,10 +2,14 @@ package internal
 
 import (
 	"crypto/md5"
+	"crypto/sha1"
 	"encoding/hex"
 	logger "github.com/sirupsen/logrus"
 	"io"
+	"math/rand"
+	"mime"
 	"os"
+	"path"
 	"path/filepath"
 	"time"
 )
@@ -56,7 +60,58 @@ func Md5HashStr(str string) string {
 	return hex.EncodeToString(hash[:])
 }
 
+// GetFileMd5 计算本地文件的MD5值
+func GetFileMd5(filename string) (string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	hasher := md5.New()
+	buffer := make([]byte, 1024*1024) // 1MB buffer
+	_, err = io.CopyBuffer(hasher, file, buffer)
+	if err != nil {
+		return "", err
+	}
+	md5Bytes := hasher.Sum(nil)
+	md5Str := hex.EncodeToString(md5Bytes)
+	return md5Str, nil
+}
+
 // SHA1
+// GetFileSha1 计算本地文件的SHA1值
+func GetFileSha1(filename string) (string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	hasher := sha1.New()
+	buffer := make([]byte, 1024*1024) // 1MB buffer
+	_, err = io.CopyBuffer(hasher, file, buffer)
+	if err != nil {
+		return "", err
+	}
+	sha1Bytes := hasher.Sum(nil)
+	sha1Str := hex.EncodeToString(sha1Bytes)
+	return sha1Str, nil
+}
+
+var extraMimeTypes = map[string]string{
+	".apk": "application/vnd.android.package-archive",
+}
+
+func GetMimeType(name string) string {
+	ext := path.Ext(name)
+	if m, ok := extraMimeTypes[ext]; ok {
+		return m
+	}
+	m := mime.TypeByExtension(ext)
+	if m != "" {
+		return m
+	}
+	return "application/octet-stream"
+}
 
 // Log
 
@@ -77,4 +132,16 @@ func LogProgress(prefix, fileName string, startTime time.Time, thisOperated, ope
 	if operated == totalSize {
 		logger.Infof("%s %s: %.2f%% (%d/%d bytes, %.2f KB/s), cost %.2f s", prefix, fileName, percent, operated, totalSize, speed, elapsed)
 	}
+}
+
+// GenRandomWord 生成一个4位随机字谜
+func GenRandomWord() string {
+	const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	b := make([]byte, 4)
+	rand.Seed(time.Now().UnixNano())
+
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
 }

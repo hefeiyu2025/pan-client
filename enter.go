@@ -10,5 +10,5 @@ func GracefulExist() {
 	common.Exit()
 }
 func GetClient(driverType pan.DriverType) (pan.Driver, error) {
-	return pan.GetDriver(pan.Cloudreve)
+	return pan.GetDriver(driverType)
 }

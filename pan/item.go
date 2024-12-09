@@ -45,12 +45,12 @@ type PanObj struct {
 	Id     string
 	Name   string
 	Path   string
-	Size   uint64
+	Size   int64
 	Type   string
 	Parent *PanObj
 }
 
-type OneStepUploadFileReq struct {
+type UploadFileReq struct {
 	LocalFile      string
 	RemotePath     string
 	Resumable      bool
@@ -58,7 +58,7 @@ type OneStepUploadFileReq struct {
 	RemoteTransfer func(remotePath, remoteName string) (string, string)
 }
 
-type OneStepUploadPathReq struct {
+type UploadPathReq struct {
 	LocalPath        string
 	RemotePath       string
 	Resumable        bool
@@ -72,7 +72,7 @@ type OneStepUploadPathReq struct {
 }
 type DownloadCallback func(localPath, localFile string)
 
-type OneStepDownloadPathReq struct {
+type DownloadPathReq struct {
 	RemotePath       *PanObj
 	LocalPath        string
 	Concurrency      int
@@ -81,7 +81,7 @@ type OneStepDownloadPathReq struct {
 	DownloadCallback DownloadCallback
 }
 
-type OneStepDownloadFileReq struct {
+type DownloadFileReq struct {
 	RemoteFile       *PanObj
 	LocalPath        string
 	Concurrency      int

@@ -20,6 +20,7 @@ type DriverType string
 const (
 	ViperDriverPrefix string     = "driver."
 	Cloudreve         DriverType = "cloudreve"
+	Quark             DriverType = "quark"
 )
 
 type Driver interface {
@@ -48,16 +49,16 @@ type Operate interface {
 	Mkdir(req MkdirReq) (*PanObj, error)
 	Move(req MovieReq) error
 	Delete(req DeleteReq) error
-	UploadPath(req OneStepUploadPathReq) error
-	UploadFile(req OneStepUploadFileReq) error
-	DownloadPath(req OneStepDownloadPathReq) error
-	DownloadFile(req OneStepDownloadFileReq) error
+	UploadPath(req UploadPathReq) error
+	UploadFile(req UploadFileReq) error
+	DownloadPath(req DownloadPathReq) error
+	DownloadFile(req DownloadFileReq) error
 }
 
 type BaseOperate struct {
 }
 
-func (b *BaseOperate) BaseUploadPath(req OneStepUploadPathReq, UploadFile func(req OneStepUploadFileReq) error) error {
+func (b *BaseOperate) BaseUploadPath(req UploadPathReq, UploadFile func(req UploadFileReq) error) error {
 	localPath := req.LocalPath
 	if localPath != "" {
 		fileInfo, err := os.Stat(localPath)
@@ -66,7 +67,7 @@ func (b *BaseOperate) BaseUploadPath(req OneStepUploadPathReq, UploadFile func(r
 			return OnlyError(err)
 		}
 		if !fileInfo.IsDir() {
-			err = UploadFile(OneStepUploadFileReq{
+			err = UploadFile(UploadFileReq{
 				LocalFile:      localPath,
 				RemotePath:     req.RemotePath,
 				Resumable:      req.Resumable,
@@ -111,7 +112,7 @@ func (b *BaseOperate) BaseUploadPath(req OneStepUploadPathReq, UploadFile func(r
 					NotUpload = true
 				}
 				if !NotUpload {
-					err = UploadFile(OneStepUploadFileReq{
+					err = UploadFile(UploadFileReq{
 						LocalFile:      path,
 						RemotePath:     strings.TrimRight(req.RemotePath, "/") + "/" + relPath,
 						Resumable:      req.Resumable,
@@ -145,9 +146,9 @@ func (b *BaseOperate) BaseUploadPath(req OneStepUploadPathReq, UploadFile func(r
 	return OnlyMsg("path is empty")
 }
 
-func (b *BaseOperate) BaseDownloadPath(req OneStepDownloadPathReq,
+func (b *BaseOperate) BaseDownloadPath(req DownloadPathReq,
 	List func(req ListReq) ([]*PanObj, error),
-	DownloadFile func(req OneStepDownloadFileReq) error) error {
+	DownloadFile func(req DownloadFileReq) error) error {
 	dir := req.RemotePath
 	remotePathName := strings.Trim(dir.Path, "/") + "/" + dir.Name
 	logger.Infof("start download dir %s -> %s", remotePathName, req.LocalPath)
@@ -163,7 +164,7 @@ func (b *BaseOperate) BaseDownloadPath(req OneStepDownloadPathReq,
 	}
 	for _, object := range objs {
 		if object.Type == "dir" {
-			err = b.BaseDownloadPath(OneStepDownloadPathReq{
+			err = b.BaseDownloadPath(DownloadPathReq{
 				RemotePath:       object,
 				LocalPath:        req.LocalPath,
 				Concurrency:      req.Concurrency,
@@ -175,7 +176,7 @@ func (b *BaseOperate) BaseDownloadPath(req OneStepDownloadPathReq,
 				return err
 			}
 		} else {
-			err = DownloadFile(OneStepDownloadFileReq{
+			err = DownloadFile(DownloadFileReq{
 				RemoteFile:       object,
 				LocalPath:        req.LocalPath,
 				Concurrency:      req.Concurrency,
@@ -192,9 +193,9 @@ func (b *BaseOperate) BaseDownloadPath(req OneStepDownloadPathReq,
 	return nil
 }
 
-type DownloadUrl func(req OneStepDownloadFileReq) (string, error)
+type DownloadUrl func(req DownloadFileReq) (string, error)
 
-func (b *BaseOperate) BaseDownloadFile(req OneStepDownloadFileReq,
+func (b *BaseOperate) BaseDownloadFile(req DownloadFileReq,
 	client *req.Client,
 	downloadUrl DownloadUrl) error {
 	object := req.RemoteFile
@@ -206,7 +207,7 @@ func (b *BaseOperate) BaseDownloadFile(req OneStepDownloadFileReq,
 	outputFile := req.LocalPath + "/" + object.Name
 	fileInfo, err := internal.IsExistFile(outputFile)
 	if fileInfo != nil && err == nil {
-		if fileInfo.Size() == int64(object.Size) && !req.OverCover {
+		if fileInfo.Size() == object.Size && !req.OverCover {
 			logger.Infof("end download file %s -> %s", remoteFileName, outputFile)
 			return nil
 		}
@@ -216,7 +217,7 @@ func (b *BaseOperate) BaseDownloadFile(req OneStepDownloadFileReq,
 		return err
 	}
 	e := internal.NewChunkDownload(url, client).
-		SetFileSize(int64(object.Size)).
+		SetFileSize(object.Size).
 		SetChunkSize(req.ChunkSize).
 		SetConcurrency(req.Concurrency).
 		SetOutputFile(outputFile).

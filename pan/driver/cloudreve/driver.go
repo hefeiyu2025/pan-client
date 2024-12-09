@@ -119,7 +119,7 @@ func (c *Cloudreve) List(req pan.ListReq) ([]*pan.PanObj, error) {
 				Id:     item.ID,
 				Name:   item.Name,
 				Path:   item.Path,
-				Size:   item.Size,
+				Size:   int64(item.Size),
 				Type:   item.Type,
 				Parent: req.Dir,
 			})
@@ -351,7 +351,7 @@ func (c *Cloudreve) Delete(req pan.DeleteReq) error {
 	return nil
 }
 
-func (c *Cloudreve) UploadPath(req pan.OneStepUploadPathReq) error {
+func (c *Cloudreve) UploadPath(req pan.UploadPathReq) error {
 	return c.BaseUploadPath(req, c.UploadFile)
 }
 
@@ -374,7 +374,7 @@ func (c *Cloudreve) uploadErrAfter(md5Key string, uploadedSize int64, session Up
 	c.Set(cacheSessionErrPrefix+md5Key, i+1)
 }
 
-func (c *Cloudreve) UploadFile(req pan.OneStepUploadFileReq) error {
+func (c *Cloudreve) UploadFile(req pan.UploadFileReq) error {
 	stat, err := os.Stat(req.LocalFile)
 	if err != nil {
 		return err
@@ -476,11 +476,11 @@ func (c *Cloudreve) UploadFile(req pan.OneStepUploadFileReq) error {
 	return nil
 }
 
-func (c *Cloudreve) DownloadPath(req pan.OneStepDownloadPathReq) error {
+func (c *Cloudreve) DownloadPath(req pan.DownloadPathReq) error {
 	return c.BaseDownloadPath(req, c.List, c.DownloadFile)
 }
-func (c *Cloudreve) DownloadFile(req pan.OneStepDownloadFileReq) error {
-	return c.BaseDownloadFile(req, c.defaultClient, func(req pan.OneStepDownloadFileReq) (string, error) {
+func (c *Cloudreve) DownloadFile(req pan.DownloadFileReq) error {
+	return c.BaseDownloadFile(req, c.defaultClient, func(req pan.DownloadFileReq) (string, error) {
 		resp, err := c.fileCreateDownloadSession(req.RemoteFile.Id)
 		if err != nil {
 			return "", err
