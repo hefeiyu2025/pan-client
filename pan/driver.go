@@ -120,13 +120,14 @@ func (b *BaseOperate) BaseUploadPath(req UploadPathReq, UploadFile func(req Uplo
 						RemoteTransfer: req.RemoteTransfer,
 					})
 					if err == nil {
+						dir := filepath.Dir(path)
+						logger.Infof("uploaded success %s", dir)
 						if req.SuccessDel {
-							dir := filepath.Dir(path)
 							if dir != "." {
 								empty, _ := internal.IsEmptyDir(dir)
 								if empty {
 									_ = os.Remove(dir)
-									fmt.Println("uploaded success and delete", dir)
+									logger.Infof("delete success %s", dir)
 								}
 							}
 						}

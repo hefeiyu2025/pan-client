@@ -34,7 +34,7 @@ type QuarkProperties struct {
 	Pus         string `mapstructure:"pus" json:"pus" yaml:"pus"`
 	Puus        string `mapstructure:"puus" json:"puus" yaml:"puus"`
 	RefreshTime int64  `mapstructure:"refresh_time" json:"refresh_time" yaml:"refresh_time" default:"0"`
-	ChunkSize   int64  `mapstructure:"chunk_size" json:"chunk_size" yaml:"chunk_size" default:"104857600"` // 100M
+	ChunkSize   int64  `mapstructure:"chunk_size" json:"chunk_size" yaml:"chunk_size" default:"314572800"` // 300M
 }
 
 func (cp *QuarkProperties) OnlyImportProperties() {
@@ -114,9 +114,9 @@ func (q *Quark) List(req pan.ListReq) ([]*pan.PanObj, error) {
 			if item.FileType == 0 {
 				fileType = "dir"
 			}
-			path := req.Dir.Path + "/" + req.Dir.Name + "/" + item.FileName
+			path := strings.TrimRight(req.Dir.Path, "/") + "/" + req.Dir.Name
 			if req.Dir.Id == "0" {
-				path = "/" + item.FileName
+				path = "/"
 			}
 			panObjs = append(panObjs, &pan.PanObj{
 				Id:     item.Fid,
@@ -141,7 +141,7 @@ func (q *Quark) List(req pan.ListReq) ([]*pan.PanObj, error) {
 	return make([]*pan.PanObj, 0), nil
 }
 func (q *Quark) ObjRename(req pan.ObjRenameReq) error {
-	if req.Obj.Id == "0" || req.Obj.Path == "/" {
+	if req.Obj.Id == "0" || (req.Obj.Path == "/" && req.Obj.Name == "") {
 		return pan.OnlyMsg("not support rename root path")
 	}
 	object := req.Obj
@@ -193,16 +193,22 @@ func (q *Quark) BatchRename(req pan.BatchRenameReq) error {
 	return nil
 }
 func (q *Quark) Mkdir(req pan.MkdirReq) (*pan.PanObj, error) {
-	if req.NewPath == "" || filepath.Ext(req.NewPath) != "" {
+	if req.NewPath == "" {
 		// 不处理，直接返回
-		return nil, nil
+		return &pan.PanObj{
+			Id:   "0",
+			Name: "",
+			Path: "/",
+			Size: 0,
+			Type: "dir",
+		}, nil
 	}
-	targetPath := "/"
-	if req.Parent != nil {
+	if filepath.Ext(req.NewPath) != "" {
+		return nil, pan.OnlyMsg("please set a dir")
+	}
+	targetPath := "/" + strings.Trim(req.NewPath, "/")
+	if req.Parent != nil && (req.Parent.Id == "0" || req.Parent.Path == "/") {
 		targetPath = req.Parent.Path + "/" + strings.Trim(req.NewPath, "/")
-		if req.Parent.Id == "0" || req.Parent.Path == "/" {
-			targetPath = "/" + strings.Trim(req.NewPath, "/")
-		}
 	}
 	obj, err := q.GetPanObj(targetPath, false, q.List)
 	if err != nil {
@@ -221,11 +227,9 @@ func (q *Quark) Mkdir(req pan.MkdirReq) (*pan.PanObj, error) {
 			return nil, pan.OnlyError(err)
 		}
 		split := strings.Split(rel, "/")
-		targetDirId := req.Parent.Id
-		tPath := existPath
+		targetDirId := obj.Id
 		for _, s := range split {
-			tPath = tPath + "/" + s
-			resp, err := q.createDirectory(existPath+"/"+split[0], targetDirId)
+			resp, err := q.createDirectory(s, targetDirId)
 			if err != nil {
 				return nil, pan.OnlyError(err)
 			}
@@ -268,7 +272,7 @@ func (q *Quark) Move(req pan.MovieReq) error {
 			}
 		}
 	}
-	err := q.objectMove(objIds, req.TargetObj.Id)
+	err := q.objectMove(objIds, targetObj.Id)
 	if err != nil {
 		return pan.OnlyError(err)
 	}
@@ -288,6 +292,10 @@ func (q *Quark) Delete(req pan.DeleteReq) error {
 			objIds = append(objIds, item.Id)
 			if item.Type == "dir" {
 				reloadDirId[item.Id] = true
+			} else {
+				if item.Parent.Id != "" {
+					reloadDirId[item.Parent.Id] = true
+				}
 			}
 		} else if item.Path != "" && item.Path != "/" {
 			obj, err := q.GetPanObj(item.Path, true, q.List)
@@ -295,6 +303,8 @@ func (q *Quark) Delete(req pan.DeleteReq) error {
 				objIds = append(objIds, obj.Id)
 				if obj.Type == "dir" {
 					reloadDirId[obj.Id] = true
+				} else {
+					reloadDirId[item.Parent.Id] = true
 				}
 			}
 		}
@@ -343,17 +353,12 @@ func (q *Quark) UploadFile(req pan.UploadFileReq) error {
 
 	mimeType := internal.GetMimeType(req.LocalFile)
 
-	file, err := os.Open(req.LocalFile)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	stat, err := file.Stat()
+	stat, err := os.Stat(req.LocalFile)
 	if err != nil {
 		return err
 	}
 	remoteName := stat.Name()
-	remotePath := req.RemotePath
+	remotePath := strings.TrimRight(req.RemotePath, "/")
 	if req.RemoteTransfer != nil {
 		remoteName, remotePath = req.RemoteTransfer(remoteName, remotePath)
 	}
@@ -423,16 +428,9 @@ func (q *Quark) UploadFile(req pan.UploadFileReq) error {
 	}
 
 	// part up
-	partSize := int64(pre.Metadata.PartSize)
+	partSize := min(int64(pre.Metadata.PartSize), q.properties.ChunkSize)
 	total := stat.Size()
 	left := total - uploadedSize
-	if uploadedSize > 0 {
-		// 将文件指针移动到指定的分片位置
-		ret, _ := file.Seek(uploadedSize, 0)
-		if ret == 0 {
-			return fmt.Errorf("seek file failed")
-		}
-	}
 	partNumber := (uploadedSize / partSize) + 1
 	pr, err := pan.NewProcessReader(req.LocalFile, partSize, uploadedSize)
 	if err != nil {

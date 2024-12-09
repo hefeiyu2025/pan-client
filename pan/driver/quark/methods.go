@@ -51,12 +51,13 @@ func funReturnBySuccessMeta[T any, R any](err error, response *req.Response, err
 
 func checkTaskSuccess(finish bool, successResult RespDataWithMeta[TaskDoing, TaskMeta], c *Quark) pan.DriverErrorInterface {
 	isFinish := finish
+	taskId := successResult.Data.TaskId
 	for {
-		if isFinish {
+		if isFinish || taskId == "" {
 			break
 		}
 		time.Sleep(time.Duration(successResult.Metadata.TqGap) * time.Millisecond)
-		query, err := c.taskQuery(successResult.Data.TaskId)
+		query, err := c.taskQuery(taskId)
 		if err != nil {
 			return err
 		}

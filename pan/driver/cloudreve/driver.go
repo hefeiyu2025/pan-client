@@ -139,7 +139,7 @@ func (c *Cloudreve) List(req pan.ListReq) ([]*pan.PanObj, error) {
 	return make([]*pan.PanObj, 0), nil
 }
 func (c *Cloudreve) ObjRename(req pan.ObjRenameReq) error {
-	if req.Obj.Id == "0" || req.Obj.Path == "/" {
+	if req.Obj.Id == "0" || (req.Obj.Path == "/" && req.Obj.Name == "") {
 		return pan.OnlyMsg("not support rename root path")
 	}
 	object := req.Obj
@@ -198,16 +198,22 @@ func (c *Cloudreve) BatchRename(req pan.BatchRenameReq) error {
 	return nil
 }
 func (c *Cloudreve) Mkdir(req pan.MkdirReq) (*pan.PanObj, error) {
-	if req.NewPath == "" || filepath.Ext(req.NewPath) != "" {
+	if req.NewPath == "" {
 		// 不处理，直接返回
-		return nil, nil
+		return &pan.PanObj{
+			Id:   "0",
+			Name: "",
+			Path: "/",
+			Size: 0,
+			Type: "dir",
+		}, nil
 	}
-	targetPath := "/"
-	if req.Parent != nil {
+	if filepath.Ext(req.NewPath) != "" {
+		return nil, pan.OnlyMsg("please set a dir")
+	}
+	targetPath := "/" + strings.Trim(req.NewPath, "/")
+	if req.Parent != nil && (req.Parent.Id == "0" || req.Parent.Path == "/") {
 		targetPath = req.Parent.Path + "/" + strings.Trim(req.NewPath, "/")
-		if req.Parent.Id == "0" || req.Parent.Path == "/" {
-			targetPath = "/" + strings.Trim(req.NewPath, "/")
-		}
 	}
 	obj, err := c.GetPanObj(targetPath, false, c.List)
 	if err != nil {
@@ -317,6 +323,9 @@ func (c *Cloudreve) Delete(req pan.DeleteReq) error {
 				reloadDirId[item.Id] = true
 			} else {
 				itemIds = append(itemIds, item.Id)
+				if item.Parent.Id != "" {
+					reloadDirId[item.Parent.Id] = true
+				}
 			}
 		} else if item.Path != "" && item.Path != "/" {
 			obj, err := c.GetPanObj(item.Path, true, c.List)
@@ -379,7 +388,7 @@ func (c *Cloudreve) UploadFile(req pan.UploadFileReq) error {
 	if err != nil {
 		return err
 	}
-	remotePath := strings.Trim(req.RemotePath, "/")
+	remotePath := strings.TrimRight(req.RemotePath, "/")
 	remoteName := stat.Name()
 	if req.RemoteTransfer != nil {
 		remotePath, remoteName = req.RemoteTransfer(remotePath, remoteName)
@@ -468,10 +477,11 @@ func (c *Cloudreve) UploadFile(req pan.UploadFileReq) error {
 		c.Del(cacheChunkPrefix + md5Key)
 		c.Del(cacheSessionErrPrefix + md5Key)
 	}
+	logger.Infof("upload success %s", req.LocalFile)
 	// 上传成功则移除文件了
 	if req.SuccessDel {
 		_ = os.Remove(req.LocalFile)
-		logger.Println("uploaded success and delete", req.LocalFile)
+		logger.Infof("delete success %s", req.LocalFile)
 	}
 	return nil
 }
