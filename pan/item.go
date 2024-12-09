@@ -78,6 +78,7 @@ type DownloadPathReq struct {
 	Concurrency      int
 	ChunkSize        int64
 	OverCover        bool
+	SkipFileErr      bool
 	DownloadCallback DownloadCallback
 }
 

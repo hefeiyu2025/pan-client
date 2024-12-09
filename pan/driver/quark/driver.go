@@ -95,15 +95,23 @@ func (q *Quark) Disk() (*pan.DiskResp, error) {
 	//}, nil
 }
 func (q *Quark) List(req pan.ListReq) ([]*pan.PanObj, error) {
-	if req.Dir.Path == "/" && req.Dir.Name == "" {
-		req.Dir.Id = "0"
+	queryDir := req.Dir
+	if queryDir.Path == "/" && queryDir.Name == "" {
+		queryDir.Id = "0"
 	}
-	cacheKey := cacheDirectoryPrefix + req.Dir.Id
+	if queryDir.Id == "" {
+		obj, err := q.GetPanObj(strings.TrimRight(queryDir.Path, "/")+"/"+queryDir.Name, true, q.List)
+		if err != nil {
+			return nil, err
+		}
+		queryDir = obj
+	}
+	cacheKey := cacheDirectoryPrefix + queryDir.Id
 	if req.Reload {
 		q.Del(cacheKey)
 	}
 	panObjs, exist, err := q.GetOrDefault(cacheKey, func() (interface{}, error) {
-		files, e := q.fileSort(req.Dir.Id)
+		files, e := q.fileSort(queryDir.Id)
 		if e != nil {
 			logger.Error(e)
 			return nil, e
@@ -114,8 +122,8 @@ func (q *Quark) List(req pan.ListReq) ([]*pan.PanObj, error) {
 			if item.FileType == 0 {
 				fileType = "dir"
 			}
-			path := strings.TrimRight(req.Dir.Path, "/") + "/" + req.Dir.Name
-			if req.Dir.Id == "0" {
+			path := strings.TrimRight(queryDir.Path, "/") + "/" + queryDir.Name
+			if queryDir.Id == "0" {
 				path = "/"
 			}
 			panObjs = append(panObjs, &pan.PanObj{
@@ -424,6 +432,11 @@ func (q *Quark) UploadFile(req pan.UploadFileReq) error {
 		return err
 	}
 	if finish.Data.Finish {
+		// 上传成功则移除文件了
+		if req.SuccessDel {
+			_ = os.Remove(req.LocalFile)
+			logger.Infof("delete success   %s", req.LocalFile)
+		}
 		return nil
 	}
 

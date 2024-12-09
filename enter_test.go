@@ -1,6 +1,7 @@
 package pan_client
 
 import (
+	"fmt"
 	"github.com/hefeiyu2025/pan-client/pan"
 	logger "github.com/sirupsen/logrus"
 	"testing"
@@ -94,12 +95,16 @@ func TestUpload(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	_, err = client.List(pan.ListReq{Dir: &pan.PanObj{
-		Id: "0",
+	objs, err := client.List(pan.ListReq{Dir: &pan.PanObj{
+		Path: "/来自：分享",
+		Name: "BY.4k",
 	}, Reload: true})
 	if err != nil {
 		t.Error(err)
 		return
+	}
+	for _, obj := range objs {
+		fmt.Println(obj.Name)
 	}
 
 	err = client.UploadPath(pan.UploadPathReq{

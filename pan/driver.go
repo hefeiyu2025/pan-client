@@ -76,7 +76,8 @@ func (b *BaseOperate) BaseUploadPath(req UploadPathReq, UploadFile func(req Uplo
 			})
 			return err
 		}
-		return filepath.Walk(localPath, func(path string, info os.FileInfo, err error) error {
+		logger.Infof("start upload dir %s -> %s", localPath, req.RemotePath)
+		err = filepath.Walk(localPath, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
@@ -112,6 +113,7 @@ func (b *BaseOperate) BaseUploadPath(req UploadPathReq, UploadFile func(req Uplo
 					NotUpload = true
 				}
 				if !NotUpload {
+					logger.Infof("start upload file %s -> %s", path, strings.TrimRight(req.RemotePath, "/")+"/"+relPath)
 					err = UploadFile(UploadFileReq{
 						LocalFile:      path,
 						RemotePath:     strings.TrimRight(req.RemotePath, "/") + "/" + relPath,
@@ -138,10 +140,15 @@ func (b *BaseOperate) BaseUploadPath(req UploadPathReq, UploadFile func(req Uplo
 							logger.Errorf("upload err %v", err)
 						}
 					}
+					logger.Infof("end upload file %s -> %s", path, strings.TrimRight(req.RemotePath, "/")+"/"+relPath)
 				}
 			}
 			return nil
 		})
+		if err != nil {
+			return err
+		}
+		logger.Infof("end upload dir %s -> %s", localPath, req.RemotePath)
 	}
 	// 遍历目录
 	return OnlyMsg("path is empty")
@@ -174,7 +181,11 @@ func (b *BaseOperate) BaseDownloadPath(req DownloadPathReq,
 				DownloadCallback: req.DownloadCallback,
 			}, List, DownloadFile)
 			if err != nil {
-				return err
+				if req.SkipFileErr {
+					logger.Errorf("download %s,err: %v", object.Name, err)
+				} else {
+					return err
+				}
 			}
 		} else {
 			err = DownloadFile(DownloadFileReq{
@@ -186,7 +197,11 @@ func (b *BaseOperate) BaseDownloadPath(req DownloadPathReq,
 				DownloadCallback: req.DownloadCallback,
 			})
 			if err != nil {
-				return err
+				if req.SkipFileErr {
+					logger.Errorf("download %s,err: %v", object.Name, err)
+				} else {
+					return err
+				}
 			}
 		}
 	}
