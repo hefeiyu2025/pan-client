@@ -222,26 +222,26 @@ func (pd *ChunkDownload) handleTask(t *downloadTask, ctx ...context.Context) {
 		return
 	}
 
-	file, err := os.OpenFile(t.tempFilename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
-	if err != nil {
-		pd.errCh <- err
+	file, eo := os.OpenFile(t.tempFilename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+	if eo != nil {
+		pd.errCh <- eo
 		return
 	}
 	cpr := &chunkProgressWriter{
 		startTime: time.Now(),
 		fileName:  t.tempFilename,
 	}
-	resp, err := pd.client.R().
+	resp, er := pd.client.R().
 		SetHeader("Range", fmt.Sprintf("bytes=%d-%d", t.rangeStart, t.rangeEnd)).
 		SetOutput(file).
 		SetDownloadCallback(cpr.downloadCallback).
 		Get(pd.url)
-	if err != nil {
-		pd.errCh <- err
+	if er != nil {
+		pd.errCh <- er
 		return
 	}
 	if resp.IsErrorState() {
-		pd.errCh <- fmt.Errorf("%s", resp.String())
+		pd.errCh <- fmt.Errorf("request error: %s", resp.String())
 		return
 	}
 	t.tempFile = file
@@ -276,15 +276,15 @@ func (pd *ChunkDownload) mergeFile() {
 			return
 		}
 		task := pd.popTask(i)
-		tempFile, err := os.Open(task.tempFilename)
-		if err != nil {
-			pd.errCh <- err
+		tempFile, eo := os.Open(task.tempFilename)
+		if eo != nil {
+			pd.errCh <- eo
 			return
 		}
-		_, err = io.Copy(file, tempFile)
+		_, eo = io.Copy(file, tempFile)
 		tempFile.Close()
-		if err != nil {
-			pd.errCh <- err
+		if eo != nil {
+			pd.errCh <- eo
 			return
 		}
 		if i < pd.lastIndex {
