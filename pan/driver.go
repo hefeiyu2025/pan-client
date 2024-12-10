@@ -71,6 +71,7 @@ func (b *BaseOperate) BaseUploadPath(req UploadPathReq, UploadFile func(req Uplo
 				LocalFile:          localPath,
 				RemotePath:         req.RemotePath,
 				Resumable:          req.Resumable,
+				OnlyFast:           req.OnlyFast,
 				SuccessDel:         req.SuccessDel,
 				RemotePathTransfer: req.RemotePathTransfer,
 				RemoteNameTransfer: req.RemotePathTransfer,
@@ -118,6 +119,7 @@ func (b *BaseOperate) BaseUploadPath(req UploadPathReq, UploadFile func(req Uplo
 					err = UploadFile(UploadFileReq{
 						LocalFile:          path,
 						RemotePath:         strings.TrimRight(req.RemotePath, "/") + "/" + relPath,
+						OnlyFast:           req.OnlyFast,
 						Resumable:          req.Resumable,
 						SuccessDel:         req.SuccessDel,
 						RemotePathTransfer: req.RemotePathTransfer,
