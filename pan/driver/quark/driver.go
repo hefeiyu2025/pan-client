@@ -367,8 +367,11 @@ func (q *Quark) UploadFile(req pan.UploadFileReq) error {
 	}
 	remoteName := stat.Name()
 	remotePath := strings.TrimRight(req.RemotePath, "/")
-	if req.RemoteTransfer != nil {
-		remoteName, remotePath = req.RemoteTransfer(remoteName, remotePath)
+	if req.RemotePathTransfer != nil {
+		remotePath = req.RemotePathTransfer(remotePath)
+	}
+	if req.RemoteNameTransfer != nil {
+		remoteName = req.RemoteNameTransfer(remoteName)
 	}
 	remoteAllPath := remotePath + "/" + remoteName
 	_, err = q.GetPanObj(remoteAllPath, true, q.List)
@@ -439,6 +442,11 @@ func (q *Quark) UploadFile(req pan.UploadFileReq) error {
 			logger.Infof("delete success   %s", req.LocalFile)
 		}
 		return nil
+	}
+
+	if req.OnlyFast {
+		logger.Infof("upload fast error %s", req.LocalFile)
+		return pan.OnlyMsg("only fast error:" + req.LocalFile)
 	}
 
 	// part up
@@ -512,11 +520,11 @@ func (q *Quark) UploadFile(req pan.UploadFileReq) error {
 		q.Del(cacheMd5sPrefix + md5Key)
 		q.Del(cacheSessionErrPrefix + md5Key)
 	}
-	logger.Infof("upload success:%s", req.LocalFile)
+	logger.Infof("upload success %s", req.LocalFile)
 	// 上传成功则移除文件了
 	if req.SuccessDel {
 		_ = os.Remove(req.LocalFile)
-		logger.Infof("delete success   %s", req.LocalFile)
+		logger.Infof("delete success %s", req.LocalFile)
 	}
 	return nil
 }

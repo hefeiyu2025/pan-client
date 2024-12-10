@@ -68,11 +68,12 @@ func (b *BaseOperate) BaseUploadPath(req UploadPathReq, UploadFile func(req Uplo
 		}
 		if !fileInfo.IsDir() {
 			err = UploadFile(UploadFileReq{
-				LocalFile:      localPath,
-				RemotePath:     req.RemotePath,
-				Resumable:      req.Resumable,
-				SuccessDel:     req.SuccessDel,
-				RemoteTransfer: req.RemoteTransfer,
+				LocalFile:          localPath,
+				RemotePath:         req.RemotePath,
+				Resumable:          req.Resumable,
+				SuccessDel:         req.SuccessDel,
+				RemotePathTransfer: req.RemotePathTransfer,
+				RemoteNameTransfer: req.RemotePathTransfer,
 			})
 			return err
 		}
@@ -115,11 +116,12 @@ func (b *BaseOperate) BaseUploadPath(req UploadPathReq, UploadFile func(req Uplo
 				if !NotUpload {
 					logger.Infof("start upload file %s -> %s", path, strings.TrimRight(req.RemotePath, "/")+"/"+relPath)
 					err = UploadFile(UploadFileReq{
-						LocalFile:      path,
-						RemotePath:     strings.TrimRight(req.RemotePath, "/") + "/" + relPath,
-						Resumable:      req.Resumable,
-						SuccessDel:     req.SuccessDel,
-						RemoteTransfer: req.RemoteTransfer,
+						LocalFile:          path,
+						RemotePath:         strings.TrimRight(req.RemotePath, "/") + "/" + relPath,
+						Resumable:          req.Resumable,
+						SuccessDel:         req.SuccessDel,
+						RemotePathTransfer: req.RemotePathTransfer,
+						RemoteNameTransfer: req.RemotePathTransfer,
 					})
 					if err == nil {
 						dir := filepath.Dir(path)
@@ -172,9 +174,13 @@ func (b *BaseOperate) BaseDownloadPath(req DownloadPathReq,
 	}
 	for _, object := range objs {
 		NotDownload := false
+		objectName := object.Name
+		if req.RemoteNameTransfer != nil {
+			objectName = req.RemoteNameTransfer(objectName)
+		}
 		if object.Type == "dir" {
 			for _, ignorePath := range req.IgnorePaths {
-				if object.Name == ignorePath {
+				if objectName == ignorePath {
 					NotDownload = true
 					break
 				}
@@ -190,30 +196,30 @@ func (b *BaseOperate) BaseDownloadPath(req DownloadPathReq,
 				}, List, DownloadFile)
 				if err != nil {
 					if req.SkipFileErr {
-						logger.Errorf("download %s,err: %v", object.Name, err)
+						logger.Errorf("download %s,err: %v", objectName, err)
 					} else {
 						return err
 					}
 				}
 			} else {
-				logger.Infof("dir will skip: %s", object.Name)
+				logger.Infof("dir will skip: %s", objectName)
 			}
 		} else {
 			for _, extension := range req.Extensions {
-				if strings.HasSuffix(object.Name, extension) {
+				if strings.HasSuffix(objectName, extension) {
 					NotDownload = false
 					break
 				}
 				NotDownload = true
 			}
 			for _, ignoreFile := range req.IgnoreFiles {
-				if object.Name == ignoreFile {
+				if objectName == ignoreFile {
 					NotDownload = true
 					break
 				}
 			}
 			for _, extension := range req.IgnoreExtensions {
-				if strings.HasSuffix(object.Name, extension) {
+				if strings.HasSuffix(objectName, extension) {
 					NotDownload = true
 					break
 				}
@@ -229,13 +235,13 @@ func (b *BaseOperate) BaseDownloadPath(req DownloadPathReq,
 				})
 				if err != nil {
 					if req.SkipFileErr {
-						logger.Errorf("download %s,err: %v", object.Name, err)
+						logger.Errorf("download %s,err: %v", objectName, err)
 					} else {
 						return err
 					}
 				}
 			} else {
-				logger.Infof("file will skip: %s", object.Name)
+				logger.Infof("file will skip: %s", objectName)
 			}
 		}
 	}

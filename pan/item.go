@@ -49,48 +49,54 @@ type PanObj struct {
 	Type   string
 	Parent *PanObj
 }
+type RemoteTransfer func(remote string) string
 
 type UploadFileReq struct {
-	LocalFile      string
-	RemotePath     string
-	Resumable      bool
-	SuccessDel     bool
-	RemoteTransfer func(remotePath, remoteName string) (string, string)
+	LocalFile          string
+	RemotePath         string
+	OnlyFast           bool
+	Resumable          bool
+	SuccessDel         bool
+	RemotePathTransfer RemoteTransfer
+	RemoteNameTransfer RemoteTransfer
 }
 
 type UploadPathReq struct {
-	LocalPath        string
-	RemotePath       string
-	Resumable        bool
-	SkipFileErr      bool
-	SuccessDel       bool
-	IgnorePaths      []string
-	IgnoreFiles      []string
-	Extensions       []string
-	IgnoreExtensions []string
-	RemoteTransfer   func(remotePath, remoteName string) (string, string)
+	LocalPath          string
+	RemotePath         string
+	Resumable          bool
+	SkipFileErr        bool
+	SuccessDel         bool
+	OnlyFast           bool
+	IgnorePaths        []string
+	IgnoreFiles        []string
+	Extensions         []string
+	IgnoreExtensions   []string
+	RemotePathTransfer RemoteTransfer
+	RemoteNameTransfer RemoteTransfer
 }
 type DownloadCallback func(localPath, localFile string)
 
 type DownloadPathReq struct {
-	RemotePath       *PanObj
-	LocalPath        string
-	Concurrency      int
-	ChunkSize        int64
-	OverCover        bool
-	SkipFileErr      bool
-	IgnorePaths      []string
-	IgnoreFiles      []string
-	Extensions       []string
-	IgnoreExtensions []string
-	DownloadCallback DownloadCallback
+	RemotePath         *PanObj
+	LocalPath          string
+	Concurrency        int
+	ChunkSize          int64
+	OverCover          bool
+	SkipFileErr        bool
+	IgnorePaths        []string
+	IgnoreFiles        []string
+	Extensions         []string
+	IgnoreExtensions   []string
+	RemoteNameTransfer RemoteTransfer
+	DownloadCallback
 }
 
 type DownloadFileReq struct {
-	RemoteFile       *PanObj
-	LocalPath        string
-	Concurrency      int
-	ChunkSize        int64
-	OverCover        bool
-	DownloadCallback DownloadCallback
+	RemoteFile  *PanObj
+	LocalPath   string
+	Concurrency int
+	ChunkSize   int64
+	OverCover   bool
+	DownloadCallback
 }

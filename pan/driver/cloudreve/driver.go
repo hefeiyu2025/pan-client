@@ -361,6 +361,9 @@ func (c *Cloudreve) Delete(req pan.DeleteReq) error {
 }
 
 func (c *Cloudreve) UploadPath(req pan.UploadPathReq) error {
+	if req.OnlyFast {
+		return pan.OnlyMsg("cloudreve is not support fast upload")
+	}
 	return c.BaseUploadPath(req, c.UploadFile)
 }
 
@@ -384,14 +387,20 @@ func (c *Cloudreve) uploadErrAfter(md5Key string, uploadedSize int64, session Up
 }
 
 func (c *Cloudreve) UploadFile(req pan.UploadFileReq) error {
+	if req.OnlyFast {
+		return pan.OnlyMsg("cloudreve is not support fast upload")
+	}
 	stat, err := os.Stat(req.LocalFile)
 	if err != nil {
 		return err
 	}
-	remotePath := strings.TrimRight(req.RemotePath, "/")
 	remoteName := stat.Name()
-	if req.RemoteTransfer != nil {
-		remotePath, remoteName = req.RemoteTransfer(remotePath, remoteName)
+	remotePath := strings.TrimRight(req.RemotePath, "/")
+	if req.RemotePathTransfer != nil {
+		remotePath = req.RemotePathTransfer(remotePath)
+	}
+	if req.RemoteNameTransfer != nil {
+		remoteName = req.RemoteNameTransfer(remoteName)
 	}
 	remoteAllPath := remotePath + "/" + remoteName
 	_, err = c.GetPanObj(remoteAllPath, true, c.List)
