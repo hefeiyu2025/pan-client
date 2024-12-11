@@ -24,7 +24,7 @@ func InitExitHook() {
 				c <- struct{}{}
 			}
 			internal.ExitWaitGroup.Wait()
-			personShutdownChan <- struct{}{}
+			close(personShutdownChan)
 		case <-internal.ExitChan:
 			for _, c := range internal.ExitChanList {
 				internal.ExitWaitGroup.Add(1)
