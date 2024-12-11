@@ -479,6 +479,7 @@ func (pr *ProgressReader) NextChunk() (int64, int64) {
 	pr.currentSize = endSize - startSize
 	pr.currentUploaded = 0
 	pr.chunkStartTime = time.Now()
+	internal.LogProgress("uploading", pr.file.Name(), pr.startTime, pr.uploaded, pr.uploaded, pr.totalSize, true)
 	return startSize, endSize
 }
 
