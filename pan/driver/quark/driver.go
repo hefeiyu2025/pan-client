@@ -350,17 +350,6 @@ func (q *Quark) uploadErrAfter(md5Key string, uploadedSize int64) {
 }
 
 func (q *Quark) UploadFile(req pan.UploadFileReq) error {
-	md5Str, err := internal.GetFileMd5(req.LocalFile)
-	if err != nil {
-		return err
-	}
-	sha1Str, err := internal.GetFileSha1(req.LocalFile)
-	if err != nil {
-		return err
-	}
-
-	mimeType := internal.GetMimeType(req.LocalFile)
-
 	stat, err := os.Stat(req.LocalFile)
 	if err != nil {
 		return err
@@ -385,6 +374,17 @@ func (q *Quark) UploadFile(req pan.UploadFileReq) error {
 	if err != nil {
 		return pan.MsgError(remotePath+" create error", err)
 	}
+
+	md5Str, err := internal.GetFileMd5(req.LocalFile)
+	if err != nil {
+		return err
+	}
+	sha1Str, err := internal.GetFileSha1(req.LocalFile)
+	if err != nil {
+		return err
+	}
+
+	mimeType := internal.GetMimeType(req.LocalFile)
 
 	md5Key := internal.Md5HashStr(req.LocalFile + remotePath + dir.Id)
 	if !req.Resumable {
