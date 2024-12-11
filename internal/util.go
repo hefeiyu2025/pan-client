@@ -133,6 +133,12 @@ func LogProgress(prefix, fileName string, startTime time.Time, thisOperated, ope
 		logger.Infof("%s %s: %.2f%% (%d/%d bytes, %.2f KB/s)", prefix, fileName, percent, operated, totalSize, speed)
 	}
 	if operated == totalSize {
+		// 完成时就重新拿已操作数据来算速度了
+		if elapsed == 0 {
+			speed = float64(operated) / 1024
+		} else {
+			speed = float64(operated) / 1024 / elapsed // KB/s
+		}
 		logger.Infof("%s %s: %.2f%% (%d/%d bytes, %.2f KB/s), cost %.2f s", prefix, fileName, percent, operated, totalSize, speed, elapsed)
 	}
 }
