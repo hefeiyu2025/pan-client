@@ -442,6 +442,7 @@ type ProgressReader struct {
 	currentChunkNum int64
 	finish          bool
 	startTime       time.Time
+	chunkStartTime  time.Time
 }
 
 func (pr *ProgressReader) Read(p []byte) (n int, err error) {
@@ -456,7 +457,11 @@ func (pr *ProgressReader) Read(p []byte) (n int, err error) {
 		if pr.uploaded == pr.totalSize {
 			pr.finish = true
 		}
-		internal.LogProgress("uploading", pr.file.Name(), pr.startTime, pr.currentUploaded, uploaded, pr.totalSize, false)
+		startTime := pr.chunkStartTime
+		if pr.finish {
+			startTime = pr.startTime
+		}
+		internal.LogProgress("uploading", pr.file.Name(), startTime, pr.currentUploaded, uploaded, pr.totalSize, false)
 	}
 	return n, err
 }
@@ -469,6 +474,7 @@ func (pr *ProgressReader) NextChunk() (int64, int64) {
 	endSize := min(pr.totalSize, pr.uploaded+pr.chunkSize)
 	pr.currentSize = endSize - startSize
 	pr.currentUploaded = 0
+	pr.chunkStartTime = time.Now()
 	return startSize, endSize
 }
 
@@ -521,5 +527,6 @@ func NewProcessReader(localFile string, chunkSize, uploaded int64) (*ProgressRea
 		totalSize:       totalSize,
 		currentChunkNum: chunkNum,
 		startTime:       time.Now(),
+		chunkStartTime:  time.Now(),
 	}, nil
 }
