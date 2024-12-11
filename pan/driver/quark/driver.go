@@ -64,7 +64,7 @@ func (q *Quark) Init() error {
 		SetTimeout(30 * time.Minute).SetBaseURL("https://drive.quark.cn/1/clouddrive")
 	q.defaultClient = req.C().SetTimeout(30 * time.Minute)
 	// 若一小时内更新过，则不重新刷session
-	if q.properties.RefreshTime == 0 || q.properties.RefreshTime-time.Now().UnixMilli() > 60*60*1000 {
+	if q.properties.RefreshTime == 0 || time.Now().UnixMilli()-q.properties.RefreshTime > 60*60*1000 {
 		_, err = q.config()
 		if err != nil {
 			return err

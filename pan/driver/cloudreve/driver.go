@@ -70,7 +70,7 @@ func (c *Cloudreve) Init() error {
 			}
 		})
 	// 若一小时内更新过，则不重新刷session
-	if c.properties.RefreshTime == 0 || c.properties.RefreshTime-time.Now().UnixMilli() > 60*60*1000 {
+	if c.properties.RefreshTime == 0 || time.Now().UnixMilli()-c.properties.RefreshTime > 60*60*1000 {
 		_, err = c.config()
 		if err != nil {
 			return err
