@@ -398,7 +398,7 @@ func (q *Quark) UploadFile(req pan.UploadFileReq) error {
 		uploadedSize = obj.(int64)
 	}
 	md5s := make([]string, 0)
-	if obj, exist := q.Get(cacheChunkPrefix + md5Key); exist {
+	if obj, exist := q.Get(cacheMd5sPrefix + md5Key); exist {
 		md5s = obj.([]string)
 	}
 
