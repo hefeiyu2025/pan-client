@@ -421,6 +421,7 @@ func (pd *ChunkDownload) CalRange() ([]Range, error) {
 			start = fileInfo.Size()
 		}
 	}
+	pd.pw.updateDownloaded(start)
 	ranges := make([]Range, 0)
 	for _, key := range keys {
 		r := rangeMap[key]
