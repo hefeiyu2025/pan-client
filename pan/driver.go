@@ -153,6 +153,7 @@ func (b *BaseOperate) BaseUploadPath(req UploadPathReq, UploadFile func(req Uplo
 			return err
 		}
 		logger.Infof("end upload dir %s -> %s", localPath, req.RemotePath)
+		return nil
 	}
 	// 遍历目录
 	return OnlyMsg("path is empty")
