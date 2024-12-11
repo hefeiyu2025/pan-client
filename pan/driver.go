@@ -266,13 +266,17 @@ func (b *BaseOperate) BaseDownloadFile(req DownloadFileReq,
 	outputFile := req.LocalPath + "/" + object.Name
 	fileInfo, err := internal.IsExistFile(outputFile)
 	if fileInfo != nil && err == nil {
-		if fileInfo.Size() == object.Size && !req.OverCover {
-			if req.DownloadCallback != nil {
-				abs, _ := filepath.Abs(outputFile)
-				req.DownloadCallback(filepath.Dir(abs), abs)
+		if fileInfo.Size() == object.Size {
+			if !req.OverCover {
+				if req.DownloadCallback != nil {
+					abs, _ := filepath.Abs(outputFile)
+					req.DownloadCallback(filepath.Dir(abs), abs)
+				}
+				logger.Infof("end download file %s -> %s", remoteFileName, outputFile)
+				return nil
+			} else {
+				_ = os.Remove(outputFile)
 			}
-			logger.Infof("end download file %s -> %s", remoteFileName, outputFile)
-			return nil
 		}
 	}
 	url, err := downloadUrl(req)

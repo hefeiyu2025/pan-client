@@ -287,6 +287,8 @@ func (pd *ChunkDownload) mergeFile() {
 			pd.errCh <- eo
 			return
 		}
+		// 合并完成则进行移除
+		_ = os.Remove(task.tempFilename)
 		if i < pd.lastIndex {
 			continue
 		}
@@ -412,6 +414,13 @@ func (pd *ChunkDownload) CalRange() ([]Range, error) {
 	})
 
 	var start int64 = 0
+	// 由于合并后会移除临时文件，所以判断文件是否存在，用其大小作为开始下载的分片
+	if pd.output == nil {
+		fileInfo, _ := IsExistFile(calFileName(pd.filename, pd.outputDirectory, pd.url))
+		if fileInfo != nil {
+			start = fileInfo.Size()
+		}
+	}
 	ranges := make([]Range, 0)
 	for _, key := range keys {
 		r := rangeMap[key]
@@ -452,30 +461,36 @@ func (pd *ChunkDownload) getOutputFile() (io.Writer, error) {
 	if outputFile != nil {
 		return outputFile, nil
 	}
-	if pd.filename == "" {
-		u, err := urlpkg.Parse(pd.url)
+	pd.filename = calFileName(pd.filename, pd.outputDirectory, pd.url)
+	err := os.MkdirAll(filepath.Dir(pd.filename), os.ModePerm)
+	if err != nil {
+		return nil, err
+	}
+	return os.OpenFile(pd.filename, os.O_RDWR|os.O_CREATE|os.O_APPEND, os.ModePerm)
+}
+
+func calFileName(filename, outputDirectory, url string) string {
+	retFileName := filename
+	if retFileName == "" {
+		u, err := urlpkg.Parse(url)
 		if err != nil {
 			panic(err)
 		}
 		paths := strings.Split(u.Path, "/")
 		for i := len(paths) - 1; i > 0; i-- {
 			if paths[i] != "" {
-				pd.filename = paths[i]
+				retFileName = paths[i]
 				break
 			}
 		}
-		if pd.filename == "" {
-			pd.filename = "download"
+		if retFileName == "" {
+			retFileName = "download"
 		}
 	}
-	if pd.outputDirectory != "" && !filepath.IsAbs(pd.filename) {
-		pd.filename = filepath.Join(pd.outputDirectory, pd.filename)
+	if outputDirectory != "" && !filepath.IsAbs(retFileName) {
+		retFileName = filepath.Join(outputDirectory, retFileName)
 	}
-	err := os.MkdirAll(filepath.Dir(pd.filename), os.ModePerm)
-	if err != nil {
-		return nil, err
-	}
-	return os.OpenFile(pd.filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+	return retFileName
 }
 
 type progressWriter struct {
