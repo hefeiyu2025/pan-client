@@ -334,22 +334,10 @@ func (q *Quark) UploadPath(req pan.UploadPathReq) error {
 	return q.BaseUploadPath(req, q.UploadFile)
 }
 
-func (q *Quark) uploadErrAfter(md5Key string, uploadedSize int64) {
-	q.Set(cacheChunkPrefix+md5Key, uploadedSize)
-	errorTimes, _, _ := q.GetOrDefault(cacheSessionErrPrefix+md5Key, func() (interface{}, error) {
-		return 0, nil
-	})
-	i := errorTimes.(int)
-	if i > 3 {
-		q.Del(cacheSessionPrefix + md5Key)
-		q.Del(cacheMd5sPrefix + md5Key)
-		q.Del(cacheChunkPrefix + md5Key)
-		q.Del(cacheSessionErrPrefix + md5Key)
-	}
-	q.Set(cacheSessionErrPrefix+md5Key, i+1)
-}
-
 func (q *Quark) UploadFile(req pan.UploadFileReq) error {
+	if req.Resumable {
+		logger.Warn("quark is not support resumeable")
+	}
 	stat, err := os.Stat(req.LocalFile)
 	if err != nil {
 		return err
@@ -386,42 +374,14 @@ func (q *Quark) UploadFile(req pan.UploadFileReq) error {
 
 	mimeType := internal.GetMimeType(req.LocalFile)
 
-	md5Key := internal.Md5HashStr(req.LocalFile + remotePath + dir.Id)
-	if !req.Resumable {
-		q.Del(cacheSessionPrefix + md5Key)
-		q.Del(cacheChunkPrefix + md5Key)
-		q.Del(cacheMd5sPrefix + md5Key)
-		q.Del(cacheSessionErrPrefix + md5Key)
-	}
-	var uploadedSize int64 = 0
-	if obj, exist := q.Get(cacheChunkPrefix + md5Key); exist {
-		uploadedSize = obj.(int64)
-	}
-	md5s := make([]string, 0)
-	if obj, exist := q.Get(cacheMd5sPrefix + md5Key); exist {
-		md5s = obj.([]string)
-	}
-
-	var pre RespDataWithMeta[FileUpPre, FileUpPreMeta]
-	data, exist, e := q.GetOrDefault(cacheSessionPrefix+md5Key, func() (interface{}, error) {
-		// pre
-		resp, err := q.FileUploadPre(FileUpPreReq{
-			ParentId: dir.Id,
-			FileName: remoteName,
-			FileSize: stat.Size(),
-			MimeType: mimeType,
-		})
-		if err != nil {
-			return nil, err
-		}
-		pre = *resp
-		return *resp, nil
+	pre, err := q.FileUploadPre(FileUpPreReq{
+		ParentId: dir.Id,
+		FileName: remoteName,
+		FileSize: stat.Size(),
+		MimeType: mimeType,
 	})
-	if e != nil {
-		return e
-	}
-	if exist {
-		pre = data.(RespDataWithMeta[FileUpPre, FileUpPreMeta])
+	if err != nil {
+		return err
 	}
 
 	// hash
@@ -431,7 +391,6 @@ func (q *Quark) UploadFile(req pan.UploadFileReq) error {
 		TaskId: pre.Data.TaskId,
 	})
 	if err != nil {
-		q.uploadErrAfter(md5Key, uploadedSize)
 		return err
 	}
 	if finish.Data.Finish {
@@ -446,23 +405,24 @@ func (q *Quark) UploadFile(req pan.UploadFileReq) error {
 
 	if req.OnlyFast {
 		logger.Infof("upload fast error %s", req.LocalFile)
-		return pan.OnlyMsg("only fast error:" + req.LocalFile)
+		return pan.OnlyMsg("only support fast error:" + req.LocalFile)
 	}
 
 	// part up
 	partSize := min(int64(pre.Metadata.PartSize), q.properties.ChunkSize)
 	total := stat.Size()
-	left := total - uploadedSize
-	partNumber := (uploadedSize / partSize) + 1
-	pr, err := pan.NewProcessReader(req.LocalFile, partSize, uploadedSize)
+	left := total
+	partNumber := 1
+	pr, err := pan.NewProcessReader(req.LocalFile, partSize, 0)
 	if err != nil {
 		return err
 	}
+	md5s := make([]string, 0)
 	for left > 0 {
 		start, end := pr.NextChunk()
 		chunkUploadSize := end - start
 		left -= chunkUploadSize
-		m, err := q.FileUpPart(FileUpPartReq{
+		m, e := q.FileUpPart(FileUpPartReq{
 			ObjKey:     pre.Data.ObjKey,
 			Bucket:     pre.Data.Bucket,
 			UploadId:   pre.Data.UploadId,
@@ -473,9 +433,8 @@ func (q *Quark) UploadFile(req pan.UploadFileReq) error {
 			TaskId:     pre.Data.TaskId,
 			Reader:     pr,
 		})
-		if err != nil {
-			q.uploadErrAfter(md5Key, uploadedSize)
-			return err
+		if e != nil {
+			return e
 		}
 		if m == "finish" {
 			logger.Infof("upload success:%s", req.LocalFile)
@@ -487,10 +446,6 @@ func (q *Quark) UploadFile(req pan.UploadFileReq) error {
 			return nil
 		}
 		md5s = append(md5s, m)
-		if req.Resumable {
-			q.Set(cacheChunkPrefix+md5Key, uploadedSize+chunkUploadSize)
-			q.Set(cacheMd5sPrefix+md5Key, md5s)
-		}
 		partNumber++
 	}
 	err = q.FileUpCommit(FileUpCommitReq{
@@ -511,14 +466,7 @@ func (q *Quark) UploadFile(req pan.UploadFileReq) error {
 		TaskId: pre.Data.TaskId,
 	})
 	if err != nil {
-		q.uploadErrAfter(md5Key, uploadedSize)
 		return err
-	}
-	if req.Resumable {
-		q.Del(cacheSessionPrefix + md5Key)
-		q.Del(cacheChunkPrefix + md5Key)
-		q.Del(cacheMd5sPrefix + md5Key)
-		q.Del(cacheSessionErrPrefix + md5Key)
 	}
 	logger.Infof("upload success %s", req.LocalFile)
 	// 上传成功则移除文件了
