@@ -118,7 +118,7 @@ func (c *Cloudreve) fileCreateFile(path string) (*Resp, pan.DriverErrorInterface
 	var result Resp
 	r.SetSuccessResult(&result)
 	r.SetErrorResult(&result)
-	r.SetBody(Json{
+	r.SetBody(pan.Json{
 		"path": path,
 	})
 	// /file/create
@@ -182,7 +182,7 @@ func (c *Cloudreve) createDirectory(path string) (*Resp, pan.DriverErrorInterfac
 	var result Resp
 	r.SetSuccessResult(&result)
 	r.SetErrorResult(&result)
-	r.SetBody(Json{
+	r.SetBody(pan.Json{
 		"path": path,
 	})
 	//directory
@@ -251,7 +251,7 @@ func (c *Cloudreve) objectGetProperty(req ItemPropertyReq) (*RespData[ObjectProp
 	var successResult RespData[ObjectProps]
 	r.SetSuccessResult(&successResult)
 	r.SetErrorResult(&errorResult)
-	r.SetQueryParamsAnyType(Json{
+	r.SetQueryParamsAnyType(pan.Json{
 		"is_folder":  req.IsFolder,
 		"trace_root": req.TraceRoot,
 	})
@@ -289,7 +289,7 @@ func (c *Cloudreve) shareUpdateShare(req ShareUpdateReq) (*RespData[string], pan
 	var errorResult Resp
 	r.SetSuccessResult(&successResult)
 	r.SetErrorResult(&errorResult)
-	r.SetBody(Json{
+	r.SetBody(pan.Json{
 		"prop":  req.Prop,
 		"value": req.Value,
 	})
@@ -314,7 +314,7 @@ func (c *Cloudreve) shareGetShare(id, password string) (*RespData[Share], pan.Dr
 	var errorResult Resp
 	r.SetSuccessResult(&successResult)
 	r.SetErrorResult(&errorResult)
-	r.SetBody(Json{
+	r.SetBody(pan.Json{
 		"password": password,
 	})
 	// /share
@@ -328,7 +328,7 @@ func (c *Cloudreve) shareGetShareDownload(id, path string) (*RespData[string], p
 	var errorResult Resp
 	r.SetSuccessResult(&successResult)
 	r.SetErrorResult(&errorResult)
-	r.SetQueryParamsAnyType(Json{
+	r.SetQueryParamsAnyType(pan.Json{
 		"path": path,
 	})
 	// /share
@@ -354,7 +354,7 @@ func (c *Cloudreve) ShareSearchSharedFolder(id, keyword, path string, searchType
 	var errorResult Resp
 	r.SetSuccessResult(&successResult)
 	r.SetErrorResult(&errorResult)
-	r.SetQueryParamsAnyType(Json{
+	r.SetQueryParamsAnyType(pan.Json{
 		"path": path,
 	})
 	// /share/search/:id/:type/:keywords
@@ -368,7 +368,7 @@ func (c *Cloudreve) shareSearchShare(req ShareListReq) (*RespData[ShareList], pa
 	var errorResult Resp
 	r.SetSuccessResult(&successResult)
 	r.SetErrorResult(&errorResult)
-	r.SetQueryParamsAnyType(Json{
+	r.SetQueryParamsAnyType(pan.Json{
 		"page":     req.Page,
 		"order_by": req.OrderBy,
 		"order":    req.Order,

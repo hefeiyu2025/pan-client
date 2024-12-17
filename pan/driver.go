@@ -21,6 +21,7 @@ const (
 	ViperDriverPrefix string     = "driver."
 	Cloudreve         DriverType = "cloudreve"
 	Quark             DriverType = "quark"
+	ThunderBrowser    DriverType = "thunder_browser"
 )
 
 type Driver interface {
@@ -132,8 +133,12 @@ func (b *BaseOperate) BaseUploadPath(req UploadPathReq, UploadFile func(req Uplo
 							if dir != "." {
 								empty, _ := internal.IsEmptyDir(dir)
 								if empty {
-									_ = os.Remove(dir)
-									logger.Infof("delete success %s", dir)
+									err = os.Remove(dir)
+									if err != nil {
+										logger.Errorf("delete fail %s,%v", dir, err)
+									} else {
+										logger.Infof("delete success %s", dir)
+									}
 								}
 							}
 						}
@@ -534,4 +539,27 @@ func NewProcessReader(localFile string, chunkSize, uploaded int64) (*ProgressRea
 		startTime:       time.Now(),
 		chunkStartTime:  time.Now(),
 	}, nil
+}
+
+type ProgressWriter struct {
+	startTime time.Time
+	totalSize int64
+	uploaded  int64
+	filename  string
+}
+
+func (pw *ProgressWriter) Write(b []byte) (n int, err error) {
+	n = len(b)
+	pw.uploaded += int64(n)
+	internal.LogProgress("uploading", pw.filename, pw.startTime, pw.uploaded, pw.uploaded, pw.totalSize, false)
+	return
+}
+
+func NewProgressWriter(filename string, total int64) *ProgressWriter {
+	return &ProgressWriter{
+		startTime: time.Now(),
+		totalSize: total,
+		uploaded:  0,
+		filename:  filename,
+	}
 }

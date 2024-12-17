@@ -1,4 +1,4 @@
-package quark
+package thunder_browser
 
 // 定义异常编码和异常信息
 const (

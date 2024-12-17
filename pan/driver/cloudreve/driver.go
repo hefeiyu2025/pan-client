@@ -14,12 +14,6 @@ import (
 	"time"
 )
 
-const (
-	CookieSessionKey = "cloudreve-session"
-	HeaderUserAgent  = "User-Agent"
-	DefaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36"
-)
-
 type Cloudreve struct {
 	sessionClient *req.Client
 	defaultClient *req.Client
@@ -489,8 +483,13 @@ func (c *Cloudreve) UploadFile(req pan.UploadFileReq) error {
 	logger.Infof("upload success %s", req.LocalFile)
 	// 上传成功则移除文件了
 	if req.SuccessDel {
-		_ = os.Remove(req.LocalFile)
-		logger.Infof("delete success %s", req.LocalFile)
+		err = os.Remove(req.LocalFile)
+		if err != nil {
+			logger.Errorf("delete fail %s,%v", req.LocalFile, err)
+		} else {
+			logger.Infof("delete success %s", req.LocalFile)
+		}
+
 	}
 	return nil
 }

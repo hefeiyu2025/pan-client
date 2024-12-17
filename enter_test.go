@@ -9,14 +9,15 @@ import (
 
 func TestDownloadAndUpload(t *testing.T) {
 	defer GracefulExist()
-	client, err := GetClient(pan.Cloudreve)
+	client, err := GetClient(pan.ThunderBrowser)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
 	list, err := client.List(pan.ListReq{Dir: &pan.PanObj{
-		Id: "0",
+		Path: "/",
+		Name: "test1",
 	}, Reload: true})
 	if err != nil {
 		t.Error(err)
@@ -26,8 +27,8 @@ func TestDownloadAndUpload(t *testing.T) {
 		if item.Type == "file" {
 			err = client.DownloadFile(pan.DownloadFileReq{
 				RemoteFile:  item,
-				LocalPath:   "./tmp",
-				ChunkSize:   1024 * 1024,
+				LocalPath:   "./tmpdata",
+				ChunkSize:   50 * 1024 * 1024,
 				OverCover:   false,
 				Concurrency: 2,
 				DownloadCallback: func(localPath, localFile string) {
@@ -38,54 +39,54 @@ func TestDownloadAndUpload(t *testing.T) {
 				t.Error(err)
 				return
 			}
-			//err = client.ObjRename(pan.ObjRenameReq{
-			//	Obj:     item,
-			//	NewName: "2.pdf",
-			//})
-			//if err != nil {
-			//	t.Error(err)
-			//	return
-			//}
-			//err = client.ObjRename(pan.ObjRenameReq{
-			//	Obj:     item,
-			//	NewName: "后浪电影学院039《看不见的剪辑》.pdf",
-			//})
-			//if err != nil {
-			//	t.Error(err)
-			//	return
-			//}
-			//err = client.Move(pan.MovieReq{
-			//	Items: []*pan.PanObj{item},
-			//	TargetObj: &pan.PanObj{
-			//		Name: "test",
-			//		Path: "/",
-			//		Type: "dir",
-			//	},
-			//})
-			//if err != nil {
-			//	t.Error(err)
-			//	return
-			//}
+			err = client.ObjRename(pan.ObjRenameReq{
+				Obj:     item,
+				NewName: "1.pdf",
+			})
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			err = client.ObjRename(pan.ObjRenameReq{
+				Obj:     item,
+				NewName: "后浪电影学院039《看不见的剪辑》.pdf",
+			})
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			err = client.Move(pan.MovieReq{
+				Items: []*pan.PanObj{item},
+				TargetObj: &pan.PanObj{
+					Name: "test2",
+					Path: "/",
+					Type: "dir",
+				},
+			})
+			if err != nil {
+				t.Error(err)
+				return
+			}
 
-			//err = client.Delete(pan.DeleteReq{
-			//	Items: []*pan.PanObj{item},
-			//})
-			//if err != nil {
-			//	t.Error(err)
-			//	return
-			//}
-			//err = client.UploadPath(pan.UploadPathReq{
-			//	LocalPath:   "./tmp",
-			//	RemotePath:  "/",
-			//	Resumable:   true,
-			//	SkipFileErr: false,
-			//	SuccessDel:  true,
-			//	Extensions:  []string{".pdf"},
-			//})
-			//if err != nil {
-			//	t.Error(err)
-			//	return
-			//}
+			err = client.Delete(pan.DeleteReq{
+				Items: []*pan.PanObj{item},
+			})
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			err = client.UploadPath(pan.UploadPathReq{
+				LocalPath:   "./tmpdata",
+				RemotePath:  "/test1",
+				Resumable:   true,
+				SkipFileErr: false,
+				SuccessDel:  true,
+				Extensions:  []string{".pdf"},
+			})
+			if err != nil {
+				t.Error(err)
+				return
+			}
 		}
 	}
 }

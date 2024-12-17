@@ -97,6 +97,28 @@ func GetFileSha1(filename string) (string, error) {
 	return sha1Str, nil
 }
 
+// GetFileGcid 计算本地文件的Gcid值
+func GetFileGcid(filename string) (string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	stat, err := file.Stat()
+	if err != nil {
+		return "", err
+	}
+	hasher := NewGcid(stat.Size())
+	buffer := make([]byte, 1024*1024) // 1MB buffer
+	_, err = io.CopyBuffer(hasher, file, buffer)
+	if err != nil {
+		return "", err
+	}
+	gcidBytes := hasher.Sum(nil)
+	gcidStr := hex.EncodeToString(gcidBytes)
+	return gcidStr, nil
+}
+
 var extraMimeTypes = map[string]string{
 	".apk": "application/vnd.android.package-archive",
 }

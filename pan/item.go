@@ -5,6 +5,8 @@ type Properties interface {
 	OnlyImportProperties()
 }
 
+type Json map[string]interface{}
+
 type DiskResp struct {
 	Used  uint64 `json:"used"`
 	Free  uint64 `json:"free"`
@@ -42,11 +44,13 @@ type BatchRenameReq struct {
 }
 
 type PanObj struct {
-	Id     string
-	Name   string
-	Path   string
-	Size   int64
-	Type   string
+	Id   string
+	Name string
+	Path string
+	Size int64
+	Type string
+	// 额外的数据
+	Ext    Json
 	Parent *PanObj
 }
 type RemoteTransfer func(remote string) string

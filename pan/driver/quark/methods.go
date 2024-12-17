@@ -81,6 +81,16 @@ func (q *Quark) taskQuery(taskId string) (*RespDataWithMeta[Task, TaskMeta], pan
 	return funReturnBySuccessMeta(err, response, errorResult, successResult)
 }
 
+func (q *Quark) member() (*RespDataWithMeta[MemberData, MemberMeta], pan.DriverErrorInterface) {
+	r := q.sessionClient.R()
+	var successResult RespDataWithMeta[MemberData, MemberMeta]
+	var errorResult Resp
+	r.SetSuccessResult(&successResult)
+	r.SetErrorResult(&errorResult)
+	response, err := r.Get("/member")
+	return funReturnBySuccessMeta(err, response, errorResult, successResult)
+}
+
 func (q *Quark) config() (*RespData[Config], pan.DriverErrorInterface) {
 	r := q.sessionClient.R()
 	var successResult RespData[Config]

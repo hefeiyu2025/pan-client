@@ -4,8 +4,6 @@ import (
 	"time"
 )
 
-type Json map[string]interface{}
-
 // Resp 基础序列化器
 type Resp struct {
 	Code  int    `json:"code"`

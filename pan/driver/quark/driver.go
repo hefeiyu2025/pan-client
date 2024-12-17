@@ -13,13 +13,6 @@ import (
 	"time"
 )
 
-const (
-	CookiePusKey     = "__pus"
-	CookiePuusKey    = "__puus"
-	HeaderUserAgent  = "User-Agent"
-	DefaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) quark-cloud-drive/2.5.20 Chrome/100.0.4896.160 Electron/18.3.5.4-b478491100 Safari/537.36 Channel/pckk_other_ch"
-)
-
 type Quark struct {
 	sessionClient *req.Client
 	defaultClient *req.Client
@@ -83,16 +76,15 @@ func (q *Quark) Drop() error {
 }
 
 func (q *Quark) Disk() (*pan.DiskResp, error) {
-	return nil, pan.OnlyMsg("not support")
-	//storageResp, err := q.userStorage()
-	//if err != nil {
-	//	return nil, err
-	//}
-	//return &pan.DiskResp{
-	//	Total: storageResp.Data.Total / 1024 / 1024,
-	//	Free:  storageResp.Data.Free / 1024 / 1024,
-	//	Used:  storageResp.Data.Used / 1024 / 1024,
-	//}, nil
+	memberResp, err := q.member()
+	if err != nil {
+		return nil, err
+	}
+	return &pan.DiskResp{
+		Total: uint64(memberResp.Data.TotalCapacity / 1024 / 1024),
+		Free:  uint64((memberResp.Data.TotalCapacity - memberResp.Data.UseCapacity) / 1024 / 1024),
+		Used:  uint64(memberResp.Data.UseCapacity / 1024 / 1024),
+	}, nil
 }
 func (q *Quark) List(req pan.ListReq) ([]*pan.PanObj, error) {
 	queryDir := req.Dir
@@ -397,8 +389,12 @@ func (q *Quark) UploadFile(req pan.UploadFileReq) error {
 		logger.Infof("upload fast success %s", req.LocalFile)
 		// 上传成功则移除文件了
 		if req.SuccessDel {
-			_ = os.Remove(req.LocalFile)
-			logger.Infof("delete success   %s", req.LocalFile)
+			err = os.Remove(req.LocalFile)
+			if err != nil {
+				logger.Errorf("delete fail %s,%v", req.LocalFile, err)
+			} else {
+				logger.Infof("delete success %s", req.LocalFile)
+			}
 		}
 		return nil
 	}
@@ -440,8 +436,12 @@ func (q *Quark) UploadFile(req pan.UploadFileReq) error {
 			logger.Infof("upload success:%s", req.LocalFile)
 			// 上传成功则移除文件了
 			if req.SuccessDel {
-				_ = os.Remove(req.LocalFile)
-				logger.Infof("delete success   %s", req.LocalFile)
+				err = os.Remove(req.LocalFile)
+				if err != nil {
+					logger.Errorf("delete fail %s,%v", req.LocalFile, err)
+				} else {
+					logger.Infof("delete success %s", req.LocalFile)
+				}
 			}
 			return nil
 		}
@@ -471,8 +471,12 @@ func (q *Quark) UploadFile(req pan.UploadFileReq) error {
 	logger.Infof("upload success %s", req.LocalFile)
 	// 上传成功则移除文件了
 	if req.SuccessDel {
-		_ = os.Remove(req.LocalFile)
-		logger.Infof("delete success %s", req.LocalFile)
+		err = os.Remove(req.LocalFile)
+		if err != nil {
+			logger.Errorf("delete fail %s,%v", req.LocalFile, err)
+		} else {
+			logger.Infof("delete success %s", req.LocalFile)
+		}
 	}
 	return nil
 }

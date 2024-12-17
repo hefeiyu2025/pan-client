@@ -4,8 +4,6 @@ import (
 	"io"
 )
 
-type Json map[string]interface{}
-
 // Resp 基础序列化器
 type Resp struct {
 	Status    int      `json:"status"`
@@ -48,6 +46,57 @@ type Config struct {
 	Sha1SizeLimit      int64  `json:"sha1_size_limit"`
 	ShareSafeHost      string `json:"share_safe_host"`
 	AllowCcpHashUpdate bool   `json:"allow_ccp_hash_update"`
+}
+type MemberMeta struct {
+	RangeSize     int   `json:"range_size"`
+	ServerCurTime int64 `json:"server_cur_time"`
+}
+
+type MemberData struct {
+	MemberType      string `json:"member_type"`
+	ExpSvipExpAt    int64  `json:"exp_svip_exp_at"`
+	ImageBackup     int    `json:"image_backup"`
+	DeepRecycleStat struct {
+		RecycleNormalServeDays int `json:"recycle_normal_serve_days"`
+		RecycleSvipServeDays   int `json:"recycle_svip_serve_days"`
+		RecycleZvipServeDays   int `json:"recycle_zvip_serve_days"`
+		RecycleVipServeDays    int `json:"recycle_vip_serve_days"`
+		RecyclePayServeDays    int `json:"recycle_pay_serve_days"`
+		DeepRecycleServeDays   int `json:"deep_recycle_serve_days"`
+	} `json:"deep_recycle_stat"`
+	CreatedAt  int64 `json:"created_at"`
+	MemberInfo struct {
+		VideoSaveToUses        int `json:"video_save_to_uses"`
+		VideoSaveToRemains     int `json:"video_save_to_remains"`
+		FileSaveToRemains      int `json:"file_save_to_remains"`
+		OfflineDownloadRemains int `json:"offline_download_remains"`
+		MemberTypeMap          struct {
+			MINIVIP struct {
+				VideoSaveToTotal int `json:"video_save_to_total"`
+			} `json:"MINI_VIP"`
+		} `json:"member_type_map"`
+	} `json:"member_info"`
+	AccStatus                 int   `json:"acc_status"`
+	SecretUseCapacity         int64 `json:"secret_use_capacity"`
+	UseCapacity               int64 `json:"use_capacity"`
+	VideoBackup               int   `json:"video_backup"`
+	ExtendCapacityComposition struct {
+	} `json:"extend_capacity_composition"`
+	IsNewUser    bool `json:"is_new_user"`
+	MemberStatus struct {
+		MINIVIP  string `json:"MINI_VIP"`
+		SUPERVIP string `json:"SUPER_VIP"`
+		VIP      string `json:"VIP"`
+		ZVIP     string `json:"Z_VIP"`
+	} `json:"member_status"`
+	SecretTotalCapacity    int64 `json:"secret_total_capacity"`
+	SubscribePayChannelMap struct {
+	} `json:"subscribe_pay_channel_map"`
+	ExpAt              int64 `json:"exp_at"`
+	SubscribeStatusMap struct {
+	} `json:"subscribe_status_map"`
+	TotalCapacity int64 `json:"total_capacity"`
+	VipExpAt      int64 `json:"vip_exp_at"`
 }
 
 type FileList struct {

@@ -3,6 +3,7 @@ module github.com/hefeiyu2025/pan-client
 go 1.23.0
 
 require (
+	github.com/aws/aws-sdk-go v1.55.5
 	github.com/imroc/req/v3 v3.48.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/sirupsen/logrus v1.9.3
@@ -19,6 +20,7 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
