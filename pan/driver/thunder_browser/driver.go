@@ -461,7 +461,21 @@ func (tb *ThunderBrowser) DownloadFile(req pan.DownloadFileReq) error {
 		if err != nil {
 			return "", err
 		}
-		return link.WebContentLink, nil
+		downloadLink := link.WebContentLink
+		if downloadLink == "" {
+			logger.Errorf("cant get link:%s,try media link", req.RemoteFile.Name)
+			for _, media := range link.Medias {
+				if media.Link.URL != "" {
+					downloadLink = media.Link.URL
+					break
+				}
+			}
+		}
+		if downloadLink == "" {
+			logger.Debugf("cant get link:%s,%v", req.RemoteFile.Name, link)
+			return "", pan.OnlyMsg(fmt.Sprintf("cant get link:%s", req.RemoteFile.Name))
+		}
+		return downloadLink, nil
 	})
 }
 
