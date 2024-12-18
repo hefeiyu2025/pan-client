@@ -364,6 +364,9 @@ func (tb *ThunderBrowser) UploadPath(req pan.UploadPathReq) error {
 }
 
 func (tb *ThunderBrowser) UploadFile(req pan.UploadFileReq) error {
+	if req.Resumable {
+		logger.Warn("thunder_browser is not support resumeable")
+	}
 	if req.OnlyFast {
 		return pan.OnlyMsg("thunder_browser is not support fast upload")
 	}
@@ -397,10 +400,13 @@ func (tb *ThunderBrowser) UploadFile(req pan.UploadFileReq) error {
 	if err != nil {
 		return err
 	}
-
-	resp, err := tb.preUpload(UploadTaskRequest{
+	parentId := dir.Id
+	if parentId == "0" {
+		parentId = ""
+	}
+	resp, err := tb.uploadTask(UploadTaskRequest{
 		Kind:       FILE,
-		ParentId:   dir.Id,
+		ParentId:   parentId,
 		Name:       remoteName,
 		Size:       stat.Size(),
 		Hash:       gcid,
@@ -477,6 +483,74 @@ func (tb *ThunderBrowser) DownloadFile(req pan.DownloadFileReq) error {
 		}
 		return downloadLink, nil
 	})
+}
+
+func (tb *ThunderBrowser) OfflineDownload(req pan.OfflineDownloadReq) (*pan.Task, error) {
+	dir, err := tb.Mkdir(pan.MkdirReq{
+		NewPath: req.RemotePath,
+	})
+	if err != nil {
+		return nil, pan.MsgError(req.RemotePath+" create error", err)
+	}
+	parentId := dir.Id
+	if parentId == "0" {
+		parentId = ""
+	}
+	remoteName := req.RemoteName
+	if remoteName == "" {
+		remoteName = req.Url
+	}
+	taskResp, e := tb.uploadTask(UploadTaskRequest{
+		Kind:       FILE,
+		ParentId:   parentId,
+		Name:       remoteName,
+		UploadType: UPLOAD_TYPE_URL,
+		Space:      ThunderDriveSpace,
+		Url: Url{
+			Url:   req.Url,
+			Files: []string{},
+		},
+	})
+
+	if e != nil {
+		return nil, e
+	}
+	task := taskResp.Task
+	return &pan.Task{
+		Id:          task.Id,
+		Name:        task.Name,
+		Type:        task.Type,
+		Phase:       task.Phase,
+		CreatedTime: task.CreatedTime.Time,
+		UpdatedTime: task.UpdatedTime.Time,
+	}, nil
+}
+
+func (tb *ThunderBrowser) TaskList(req pan.TaskListReq) ([]*pan.Task, error) {
+	tasks, err := tb.taskQuery(TaskQueryRequest{
+		Space:  ThunderDriveSpace,
+		Types:  req.Types,
+		Ids:    req.Ids,
+		Phases: req.Phases,
+		With:   "reference_resource",
+		Limit:  100,
+	})
+	if err != nil {
+		return nil, err
+	}
+	panTasks := make([]*pan.Task, 0)
+	for _, task := range tasks {
+		panTasks = append(panTasks, &pan.Task{
+			Id:          task.Id,
+			Name:        task.Name,
+			Type:        task.Type,
+			Phase:       task.Phase,
+			CreatedTime: task.CreatedTime.Time,
+			UpdatedTime: task.UpdatedTime.Time,
+		})
+	}
+
+	return panTasks, nil
 }
 
 func (tb *ThunderBrowser) ShareList() {}

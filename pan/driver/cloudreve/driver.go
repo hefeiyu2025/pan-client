@@ -507,6 +507,14 @@ func (c *Cloudreve) DownloadFile(req pan.DownloadFileReq) error {
 	})
 }
 
+func (c *Cloudreve) OfflineDownload(req pan.OfflineDownloadReq) (*pan.Task, error) {
+	return nil, pan.OnlyMsg("offline download not support")
+}
+
+func (c *Cloudreve) TaskList(req pan.TaskListReq) ([]*pan.Task, error) {
+	return nil, pan.OnlyMsg("task list not support")
+}
+
 func (c *Cloudreve) ShareList() {}
 func (c *Cloudreve) NewShare() {
 

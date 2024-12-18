@@ -1,5 +1,7 @@
 package pan
 
+import "time"
+
 type Properties interface {
 	// OnlyImportProperties 仅仅定义一个接口来进行继承
 	OnlyImportProperties()
@@ -103,4 +105,27 @@ type DownloadFileReq struct {
 	ChunkSize   int64
 	OverCover   bool
 	DownloadCallback
+}
+
+type OfflineDownloadReq struct {
+	RemotePath string
+	RemoteName string
+	Url        string
+}
+
+type TaskListReq struct {
+	Ids    []string
+	Name   string
+	Types  []string
+	Phases []string
+}
+
+type Task struct {
+	Id          string
+	Name        string
+	Type        string
+	Phase       string
+	CreatedTime time.Time
+	UpdatedTime time.Time
+	Ext         Json
 }

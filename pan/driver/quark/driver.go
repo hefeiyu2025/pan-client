@@ -494,6 +494,14 @@ func (q *Quark) DownloadFile(req pan.DownloadFileReq) error {
 	})
 }
 
+func (q *Quark) OfflineDownload(req pan.OfflineDownloadReq) (*pan.Task, error) {
+	return nil, pan.OnlyMsg("offline download not support")
+}
+
+func (q *Quark) TaskList(req pan.TaskListReq) ([]*pan.Task, error) {
+	return nil, pan.OnlyMsg("task list not support")
+}
+
 func (q *Quark) ShareList() {}
 func (q *Quark) NewShare() {
 

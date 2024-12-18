@@ -134,11 +134,11 @@ type CaptchaTokenResponse struct {
 }
 
 type FileList struct {
-	Kind            string  `json:"kind"`
-	NextPageToken   string  `json:"next_page_token"`
-	Files           []Files `json:"files"`
-	Version         string  `json:"version"`
-	VersionOutdated bool    `json:"version_outdated"`
+	Kind            string   `json:"kind"`
+	NextPageToken   string   `json:"next_page_token"`
+	Files           []*Files `json:"files"`
+	Version         string   `json:"version"`
+	VersionOutdated bool     `json:"version_outdated"`
 	FolderType      int8
 }
 
@@ -222,12 +222,12 @@ type Link struct {
 	Type   string    `json:"type"`
 }
 
-/*
-* 上传
-**/
 type UploadTaskResponse struct {
 	UploadType string `json:"upload_type"`
 
+	Url struct {
+		Kind string `json:"kind"`
+	} `json:"url"`
 	//UPLOAD_TYPE_FORM
 	Form struct {
 		Headers    struct{} `json:"headers"`
@@ -260,16 +260,105 @@ type UploadTaskResponse struct {
 	} `json:"resumable"`
 
 	File Files `json:"file"`
+	Task Task  `json:"task"`
+}
+
+type Task struct {
+	Kind       string        `json:"kind"`
+	Id         string        `json:"id"`
+	Name       string        `json:"name"`
+	Type       string        `json:"type"`
+	UserId     string        `json:"user_id"`
+	Statuses   []interface{} `json:"statuses"`
+	StatusSize int           `json:"status_size"`
+	Params     struct {
+		FolderType   string `json:"folder_type"`
+		PredictSpeed string `json:"predict_speed"`
+		PredictType  string `json:"predict_type"`
+	} `json:"params"`
+	FileId            string            `json:"file_id"`
+	FileName          string            `json:"file_name"`
+	FileSize          string            `json:"file_size"`
+	Message           string            `json:"message"`
+	CreatedTime       CustomTime        `json:"created_time"`
+	UpdatedTime       CustomTime        `json:"updated_time"`
+	ThirdTaskId       string            `json:"third_task_id"`
+	Phase             string            `json:"phase"`
+	Progress          int               `json:"progress"`
+	IconLink          string            `json:"icon_link"`
+	Callback          string            `json:"callback"`
+	ReferenceResource ReferenceResource `json:"reference_resource"`
+	Space             string            `json:"space"`
+}
+
+type ReferenceResource struct {
+	Type     string `json:"@type"`
+	Kind     string `json:"kind"`
+	Id       string `json:"id"`
+	ParentId string `json:"parent_id"`
+	Name     string `json:"name"`
+	Size     string `json:"size"`
+	MimeType string `json:"mime_type"`
+	IconLink string `json:"icon_link"`
+	Hash     string `json:"hash"`
+	Phase    string `json:"phase"`
+	Audit    struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+		Title   string `json:"title"`
+	} `json:"audit"`
+	ThumbnailLink string `json:"thumbnail_link"`
+	Params        struct {
+		PlatformIcon string `json:"platform_icon"`
+		UrlInfoId    string `json:"url_info_id"`
+	} `json:"params"`
+	Space   string        `json:"space"`
+	Medias  []interface{} `json:"medias"`
+	Starred bool          `json:"starred"`
+	Tags    []interface{} `json:"tags"`
 }
 
 type UploadTaskRequest struct {
+	Space      string `json:"space"`
 	Kind       string `json:"kind"`
 	ParentId   string `json:"parent_id"`
 	Name       string `json:"name"`
 	Size       int64  `json:"size"`
 	Hash       string `json:"hash"`
 	UploadType string `json:"upload_type"`
-	Space      string `json:"space"`
+	FolderType string `json:"folder_type"`
+	Url        Url    `json:"url"`
+	Params     Params `json:"params"`
+}
+
+type Url struct {
+	Url   string   `json:"url"`
+	Files []string `json:"files"`
+}
+
+type Params struct {
+	RequireLinks string `json:"require_links"`
+	WebTitle     string `json:"web_title"`
+}
+
+type TaskQueryRequest struct {
+	Space string `json:"space"`
+	// 参考 TASK_TYPE_OFFLINE，TASK_TYPE_MOVE，TASK_TYPE_UPLOAD，TASK_TYPE_EVENT_DELETION,TASK_TYPE_DELETEFILE
+	Types []string `json:"type"`
+	// 任务ID
+	Ids []string `json:"ids"`
+	// 参考 PHASE_TYPE_ERROR，PHASE_TYPE_RUNNING，PHASE_TYPE_PENDING，PHASE_TYPE_COMPLETE
+	Phases []string `json:"phases"`
+	// 参考 reference_resource
+	With  string `json:"with"`
+	Limit int64  `json:"size"`
+}
+
+type TaskQueryResponse struct {
+	Tasks         []*Task `json:"tasks"`
+	NextPageToken string  `json:"next_page_token"`
+	ExpiresIn     int     `json:"expires_in"`
+	ExpiresInMs   int     `json:"expires_in_ms"`
 }
 
 type MkdirResponse struct {

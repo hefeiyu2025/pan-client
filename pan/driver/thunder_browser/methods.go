@@ -7,6 +7,8 @@ import (
 	"github.com/imroc/req/v3"
 	"net/http"
 	"regexp"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -238,12 +240,12 @@ func (tb *ThunderBrowser) getLink(id string) (*Files, pan.DriverErrorInterface) 
 	return &lFile, err
 }
 
-func (tb *ThunderBrowser) getFiles(dirId string) ([]Files, pan.DriverErrorInterface) {
+func (tb *ThunderBrowser) getFiles(dirId string) ([]*Files, pan.DriverErrorInterface) {
 	parentId := dirId
 	if dirId == "0" {
 		parentId = ""
 	}
-	files := make([]Files, 0)
+	files := make([]*Files, 0)
 	var pageToken string
 	for {
 		var successResult FileList
@@ -280,11 +282,7 @@ func (tb *ThunderBrowser) getFiles(dirId string) ([]Files, pan.DriverErrorInterf
 	return files, nil
 }
 
-func (tb *ThunderBrowser) preUpload(body UploadTaskRequest) (*UploadTaskResponse, pan.DriverErrorInterface) {
-	parentId := body.ParentId
-	if parentId == "0" {
-		body.ParentId = ""
-	}
+func (tb *ThunderBrowser) uploadTask(body UploadTaskRequest) (*UploadTaskResponse, pan.DriverErrorInterface) {
 	var successResult UploadTaskResponse
 	_, err := tb.request(func(r *req.Request) (*req.Response, error) {
 		r.SetSuccessResult(&successResult)
@@ -295,6 +293,52 @@ func (tb *ThunderBrowser) preUpload(body UploadTaskRequest) (*UploadTaskResponse
 		return nil, err
 	}
 	return &successResult, err
+}
+
+func (tb *ThunderBrowser) taskQuery(taskQueryReq TaskQueryRequest) ([]*Task, pan.DriverErrorInterface) {
+
+	tasks := make([]*Task, 0)
+	var pageToken string
+	filters := `{`
+	if len(taskQueryReq.Ids) > 0 {
+		filters += `"id":{"in":"` + strings.Join(taskQueryReq.Ids, ",") + `"},`
+	}
+	if len(taskQueryReq.Phases) > 0 {
+		filters += `"phase":{"in":"` + strings.Join(taskQueryReq.Phases, ",") + `"},`
+	}
+	if len(taskQueryReq.Types) > 0 {
+		filters += `"type":{"in":"` + strings.Join(taskQueryReq.Types, ",") + `"},`
+	}
+	filters = strings.TrimRight(filters, ",")
+	filters += `}`
+	for {
+		var successResult TaskQueryResponse
+		_, err := tb.request(func(r *req.Request) (*req.Response, error) {
+			r.SetSuccessResult(&successResult)
+			r.SetQueryParams(map[string]string{
+				"page_token":     pageToken,
+				"space":          taskQueryReq.Space,
+				"filters":        filters,
+				"with":           taskQueryReq.With,
+				"limit":          strconv.FormatInt(taskQueryReq.Limit, 10),
+				"thumbnail_size": "SIZE_SMALL",
+			})
+			return r.Get(API_URL + "/tasks")
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		for _, file := range successResult.Tasks {
+			tasks = append(tasks, file)
+		}
+
+		if successResult.NextPageToken == "" {
+			break
+		}
+		pageToken = successResult.NextPageToken
+	}
+	return tasks, nil
 }
 
 func (tb *ThunderBrowser) request(request func(r *req.Request) (*req.Response, error)) (*req.Response, pan.DriverErrorInterface) {
