@@ -366,3 +366,91 @@ type MkdirResponse struct {
 	File       *Files      `json:"file"`
 	Task       interface{} `json:"task"`
 }
+
+type ShareListResp struct {
+	Data          []*ShareInfo `json:"data"`
+	NextPageToken string       `json:"next_page_token"`
+}
+
+type UserInfo struct {
+	UserId      string `json:"user_id"`
+	PortraitUrl string `json:"portrait_url"`
+	Nickname    string `json:"nickname"`
+	Avatar      string `json:"avatar"`
+}
+
+type ShareInfo struct {
+	ShareId               string     `json:"share_id"`
+	ShareStatus           string     `json:"share_status"`
+	ShareStatusText       string     `json:"share_status_text"`
+	Title                 string     `json:"title"`
+	IconLink              string     `json:"icon_link"`
+	ThumbnailLink         string     `json:"thumbnail_link"`
+	PassCode              string     `json:"pass_code"`
+	FileNum               string     `json:"file_num"`
+	RestoreLimit          string     `json:"restore_limit"`
+	ExpirationDays        string     `json:"expiration_days"`
+	ExpirationAt          string     `json:"expiration_at"`
+	RestoreCount          string     `json:"restore_count"`
+	ExpirationLeft        string     `json:"expiration_left"`
+	ExpirationLeftSeconds string     `json:"expiration_left_seconds"`
+	ViewCount             string     `json:"view_count"`
+	CreateTime            CustomTime `json:"create_time"`
+	UserInfo              UserInfo   `json:"user_info"`
+	ShareUrl              string     `json:"share_url"`
+	FileId                string     `json:"file_id"`
+	FileKind              string     `json:"file_kind"`
+	FileSize              string     `json:"file_size"`
+	ShareTo               string     `json:"share_to"`
+	Params                struct {
+		MimeType string `json:"mime_type"`
+		Name     string `json:"name"`
+	} `json:"params"`
+}
+
+type CreateShareReq struct {
+	FileIds        []string          `json:"file_ids"`
+	ShareTo        string            `json:"share_to"`
+	Params         CreateShareParams `json:"params"`
+	Title          string            `json:"title"`
+	RestoreLimit   string            `json:"restore_limit"`
+	ExpirationDays string            `json:"expiration_days"`
+}
+
+type CreateShareParams struct {
+	SubscribePush      bool `json:"subscribe_push"`
+	WithPassCodeInLink bool `json:"WithPassCodeInLink"`
+}
+
+type CreateShareResp struct {
+	ShareId         string        `json:"share_id"`
+	ShareUrl        string        `json:"share_url"`
+	PassCode        string        `json:"pass_code"`
+	ShareText       string        `json:"share_text"`
+	ShareList       []interface{} `json:"share_list"`
+	ShareErrorFiles []interface{} `json:"share_error_files"`
+	ShareTextExt    string        `json:"share_text_ext"`
+}
+
+type ShareDetailResp struct {
+	ShareStatus                  string      `json:"share_status"`
+	ShareStatusText              string      `json:"share_status_text"`
+	FileNum                      string      `json:"file_num"`
+	ExpirationLeft               string      `json:"expiration_left"`
+	ExpirationLeftSeconds        string      `json:"expiration_left_seconds"`
+	ExpirationAt                 string      `json:"expiration_at"`
+	RestoreCountLeft             string      `json:"restore_count_left"`
+	Files                        []*Files    `json:"files"`
+	UserInfo                     UserInfo    `json:"user_info"`
+	NextPageToken                string      `json:"next_page_token"`
+	PassCodeToken                string      `json:"pass_code_token"`
+	Title                        string      `json:"title"`
+	IconLink                     string      `json:"icon_link"`
+	ThumbnailLink                string      `json:"thumbnail_link"`
+	ContainSensitiveResourceText string      `json:"contain_sensitive_resource_text"`
+	Params                       interface{} `json:"params"`
+}
+
+type ShareDetailReq struct {
+	ShareId, PassCode, ParentId, PassCodeToken string
+}

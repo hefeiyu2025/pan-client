@@ -313,7 +313,7 @@ func (b *BaseOperate) BaseDownloadFile(req DownloadFileReq,
 type Share interface {
 	ShareList()
 	NewShare()
-	DeleteShare()
+	DeleteShare(req DelShareReq) error
 }
 
 type PropertiesOperate struct {

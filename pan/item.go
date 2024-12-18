@@ -129,3 +129,7 @@ type Task struct {
 	UpdatedTime time.Time
 	Ext         Json
 }
+
+type DelShareReq struct {
+	ShareId string
+}

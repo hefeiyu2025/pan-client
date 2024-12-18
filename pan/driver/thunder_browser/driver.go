@@ -553,12 +553,14 @@ func (tb *ThunderBrowser) TaskList(req pan.TaskListReq) ([]*pan.Task, error) {
 	return panTasks, nil
 }
 
-func (tb *ThunderBrowser) ShareList() {}
+func (tb *ThunderBrowser) ShareList() {
+
+}
 func (tb *ThunderBrowser) NewShare() {
 
 }
-func (tb *ThunderBrowser) DeleteShare() {
-
+func (tb *ThunderBrowser) DeleteShare(req pan.DelShareReq) error {
+	return tb.deleteShare(req.ShareId)
 }
 
 func init() {

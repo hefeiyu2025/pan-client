@@ -329,8 +329,8 @@ func (tb *ThunderBrowser) taskQuery(taskQueryReq TaskQueryRequest) ([]*Task, pan
 			return nil, err
 		}
 
-		for _, file := range successResult.Tasks {
-			tasks = append(tasks, file)
+		for _, task := range successResult.Tasks {
+			tasks = append(tasks, task)
 		}
 
 		if successResult.NextPageToken == "" {
@@ -340,6 +340,102 @@ func (tb *ThunderBrowser) taskQuery(taskQueryReq TaskQueryRequest) ([]*Task, pan
 	}
 	return tasks, nil
 }
+
+func (tb *ThunderBrowser) shareList(shareIds []string) ([]*ShareInfo, pan.DriverErrorInterface) {
+	var pageToken string
+	filters := `{`
+	if len(shareIds) > 0 {
+		filters += `"id":{"in":"` + strings.Join(shareIds, ",") + `"},`
+	}
+	filters = strings.TrimRight(filters, ",")
+	filters += `}`
+	shareList := make([]*ShareInfo, 0)
+	for {
+		var successResult ShareListResp
+		_, err := tb.request(func(r *req.Request) (*req.Response, error) {
+			r.SetSuccessResult(&successResult)
+			r.SetQueryParams(map[string]string{
+				"page_token":     pageToken,
+				"space":          ThunderDriveSpace,
+				"filters":        filters,
+				"limit":          "100",
+				"thumbnail_size": "SIZE_SMALL",
+			})
+			return r.Get(API_URL + "/share/list")
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		for _, share := range successResult.Data {
+			shareList = append(shareList, share)
+		}
+
+		if successResult.NextPageToken == "" {
+			break
+		}
+		pageToken = successResult.NextPageToken
+	}
+
+	return shareList, nil
+}
+
+func (tb *ThunderBrowser) createShare(createShareReq CreateShareReq) (*CreateShareResp, pan.DriverErrorInterface) {
+	var successResult CreateShareResp
+	_, err := tb.request(func(r *req.Request) (*req.Response, error) {
+		r.SetSuccessResult(&successResult)
+		r.SetBody(createShareReq)
+		return r.Post(API_URL + "/share")
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &successResult, nil
+}
+
+func (tb *ThunderBrowser) deleteShare(shareId string) pan.DriverErrorInterface {
+	_, err := tb.request(func(r *req.Request) (*req.Response, error) {
+		r.SetBody(map[string]string{
+			"share_id": shareId,
+			"space":    ThunderDriveSpace,
+		})
+		return r.Post(API_URL + "/share/delete")
+	})
+	return err
+}
+
+func (tb *ThunderBrowser) getShare(shareDetailReq ShareDetailReq) (*ShareDetailResp, pan.DriverErrorInterface) {
+	var successResult ShareDetailResp
+	_, err := tb.request(func(r *req.Request) (*req.Response, error) {
+		r.SetSuccessResult(&successResult)
+		r.SetQueryParams(map[string]string{
+			"share_id":  shareDetailReq.ShareId,
+			"pass_code": shareDetailReq.PassCode,
+			"limit":     "100",
+			"space":     ThunderDriveSpace,
+		})
+		return r.Get(API_URL + "/share")
+	})
+	return &successResult, err
+}
+
+func (tb *ThunderBrowser) getShareDetail(shareDetailReq ShareDetailReq) (*ShareDetailResp, pan.DriverErrorInterface) {
+	var successResult ShareDetailResp
+	_, err := tb.request(func(r *req.Request) (*req.Response, error) {
+		r.SetSuccessResult(&successResult)
+		r.SetQueryParams(map[string]string{
+			"share_id":        shareDetailReq.ShareId,
+			"pass_code_token": shareDetailReq.PassCodeToken,
+			"parent_id":       shareDetailReq.ParentId,
+			"limit":           "100",
+			"space":           ThunderDriveSpace,
+		})
+		return r.Get(API_URL + "/share/detail")
+	})
+	return &successResult, err
+}
+
+// 还要一个保存分享文件的方法
 
 func (tb *ThunderBrowser) request(request func(r *req.Request) (*req.Response, error)) (*req.Response, pan.DriverErrorInterface) {
 	r := tb.sessionClient.R()

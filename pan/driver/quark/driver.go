@@ -506,8 +506,8 @@ func (q *Quark) ShareList() {}
 func (q *Quark) NewShare() {
 
 }
-func (q *Quark) DeleteShare() {
-
+func (q *Quark) DeleteShare(req pan.DelShareReq) error {
+	return pan.OnlyMsg("delete share not support")
 }
 
 func init() {

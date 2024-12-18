@@ -519,8 +519,8 @@ func (c *Cloudreve) ShareList() {}
 func (c *Cloudreve) NewShare() {
 
 }
-func (c *Cloudreve) DeleteShare() {
-
+func (c *Cloudreve) DeleteShare(req pan.DelShareReq) error {
+	return pan.OnlyMsg("delete share not support")
 }
 
 func init() {
