@@ -418,8 +418,8 @@ type CreateShareReq struct {
 }
 
 type CreateShareParams struct {
-	SubscribePush      bool `json:"subscribe_push"`
-	WithPassCodeInLink bool `json:"WithPassCodeInLink"`
+	SubscribePush      string `json:"subscribe_push"`
+	WithPassCodeInLink string `json:"WithPassCodeInLink"`
 }
 
 type CreateShareResp struct {

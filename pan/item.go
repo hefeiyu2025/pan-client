@@ -140,7 +140,7 @@ type NewShareReq struct {
 	Fids []string
 	// 分享标题
 	Title string
-	// 需要密码
+	// 需要密码,thunder 无效
 	NeedPassCode bool
 	// quark 1 无限期 2 1天 3 7天 4 30天
 	// thunder -1 不限 1 1天 2 2天 3 3天 4 4天 如此类推

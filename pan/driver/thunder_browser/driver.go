@@ -580,8 +580,8 @@ func (tb *ThunderBrowser) NewShare(req pan.NewShareReq) (*pan.ShareData, error) 
 		FileIds: req.Fids,
 		ShareTo: "copy",
 		Params: CreateShareParams{
-			SubscribePush:      false,
-			WithPassCodeInLink: req.NeedPassCode,
+			SubscribePush:      "false",
+			WithPassCodeInLink: strconv.FormatBool(req.NeedPassCode),
 		},
 		Title:          req.Title,
 		RestoreLimit:   "-1",

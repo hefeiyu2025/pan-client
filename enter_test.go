@@ -157,6 +157,52 @@ func TestOfflineDownload(t *testing.T) {
 	}
 }
 
+func TestShare(t *testing.T) {
+	defer GracefulExist()
+	client, err := GetClient(pan.ThunderBrowser)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	dir, err := client.Mkdir(pan.MkdirReq{
+		NewPath: "/僵",
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	share, err := client.NewShare(pan.NewShareReq{
+		Fids:         []string{dir.Id},
+		Title:        "我的分享",
+		NeedPassCode: false,
+		ExpiredType:  -1,
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	shareList, err := client.ShareList(pan.ShareListReq{
+		ShareIds: []string{share.ShareId},
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	marshal, err := json.Marshal(shareList)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	fmt.Println(string(marshal))
+	err = client.DeleteShare(pan.DelShareReq{
+		ShareIds: []string{share.ShareId},
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+}
+
 func TestShareRestore(t *testing.T) {
 	defer GracefulExist()
 	client, err := GetClient(pan.ThunderBrowser)
