@@ -343,11 +343,11 @@ type Params struct {
 
 type TaskQueryRequest struct {
 	Space string `json:"space"`
-	// 参考 TASK_TYPE_OFFLINE，TASK_TYPE_MOVE，TASK_TYPE_UPLOAD，TASK_TYPE_EVENT_DELETION,TASK_TYPE_DELETEFILE
+	// 参考 TaskTypeOffline，TASK_TYPE_MOVE，TASK_TYPE_UPLOAD，TASK_TYPE_EVENT_DELETION,TASK_TYPE_DELETEFILE
 	Types []string `json:"type"`
 	// 任务ID
 	Ids []string `json:"ids"`
-	// 参考 PHASE_TYPE_ERROR，PHASE_TYPE_RUNNING，PHASE_TYPE_PENDING，PHASE_TYPE_COMPLETE
+	// 参考 PhaseTypeError，PHASE_TYPE_RUNNING，PHASE_TYPE_PENDING，PHASE_TYPE_COMPLETE
 	Phases []string `json:"phases"`
 	// 参考 reference_resource
 	With  string `json:"with"`
@@ -453,4 +453,21 @@ type ShareDetailResp struct {
 
 type ShareDetailReq struct {
 	ShareId, PassCode, ParentId, PassCodeToken string
+}
+
+type AboutResp struct {
+	Kind      string           `json:"kind"`
+	Quota     Quota            `json:"quota"`
+	ExpiresAt string           `json:"expires_at"`
+	Quotas    map[string]Quota `json:"quotas"`
+}
+
+type Quota struct {
+	Kind           string `json:"kind"`
+	Limit          string `json:"limit"`
+	Usage          string `json:"usage"`
+	UsageInTrash   string `json:"usage_in_trash"`
+	PlayTimesLimit string `json:"play_times_limit"`
+	PlayTimesUsage string `json:"play_times_usage"`
+	IsUnlimited    bool   `json:"is_unlimited"`
 }

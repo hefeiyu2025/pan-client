@@ -341,7 +341,7 @@ func (tb *ThunderBrowser) taskQuery(taskQueryReq TaskQueryRequest) ([]*Task, pan
 	return tasks, nil
 }
 
-func (tb *ThunderBrowser) shareList(shareIds []string) ([]*ShareInfo, pan.DriverErrorInterface) {
+func (tb *ThunderBrowser) shareList(shareIds ...string) ([]*ShareInfo, pan.DriverErrorInterface) {
 	var pageToken string
 	filters := `{`
 	if len(shareIds) > 0 {
@@ -431,6 +431,19 @@ func (tb *ThunderBrowser) getShareDetail(shareDetailReq ShareDetailReq) (*ShareD
 			"space":           ThunderDriveSpace,
 		})
 		return r.Get(API_URL + "/share/detail")
+	})
+	return &successResult, err
+}
+
+func (tb *ThunderBrowser) about() (*AboutResp, pan.DriverErrorInterface) {
+	var successResult AboutResp
+	_, err := tb.request(func(r *req.Request) (*req.Response, error) {
+		r.SetSuccessResult(&successResult)
+		r.SetQueryParams(map[string]string{
+			"with_quotas": QuotaCreateOfflineTaskLimit,
+			"space":       ThunderDriveSpace,
+		})
+		return r.Get(API_URL + "/about")
 	})
 	return &successResult, err
 }

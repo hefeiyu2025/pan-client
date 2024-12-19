@@ -140,7 +140,7 @@ func TestOfflineDownload(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if downloadTask.Phase != thunder_browser.PHASE_TYPE_COMPLETE {
+	if downloadTask.Phase != thunder_browser.PhaseTypeComplete {
 		taskResp, err := client.TaskList(pan.TaskListReq{
 			Ids: []string{downloadTask.Id},
 		})

@@ -452,7 +452,7 @@ func (q *Quark) fileDownload(fileId string) (*RespData[[]DownloadData], pan.Driv
 	return funReturnBySuccess(err, response, errorResult, successResult)
 }
 
-func (q *Quark) Share(req ShareReq) (string, error) {
+func (q *Quark) share(req ShareReq) (string, pan.DriverErrorInterface) {
 	shareId := ""
 	if req.UrlType == 2 && req.Passcode == "" {
 		req.Passcode = internal.GenRandomWord()
@@ -465,14 +465,9 @@ func (q *Quark) Share(req ShareReq) (string, error) {
 	r.SetBody(req)
 	// share
 	response, err := r.Post("/share")
-	if err != nil {
-		return shareId, err
-	}
-	if response.IsErrorState() {
-		return shareId, fmt.Errorf("code: %d, msg: %s", errorResult.Code, errorResult.Msg)
-	}
-	if successResult.Status >= 400 || successResult.Code != 0 {
-		return shareId, fmt.Errorf("code: %d, msg: %s", successResult.Code, successResult.Msg)
+	result, e := funReturnBySuccessMeta(err, response, errorResult, successResult)
+	if e != nil {
+		return shareId, e
 	}
 	isFinish := false
 
@@ -480,8 +475,8 @@ func (q *Quark) Share(req ShareReq) (string, error) {
 		if isFinish {
 			break
 		}
-		time.Sleep(time.Duration(successResult.Metadata.TqGap) * time.Millisecond)
-		query, err := q.taskQuery(successResult.Data.TaskId)
+		time.Sleep(time.Duration(result.Metadata.TqGap) * time.Millisecond)
+		query, err := q.taskQuery(result.Data.TaskId)
 		if err != nil {
 			return shareId, err
 		}
@@ -493,7 +488,7 @@ func (q *Quark) Share(req ShareReq) (string, error) {
 	return shareId, nil
 }
 
-func (q *Quark) SharePassword(shareId string) (*RespData[SharePasswordData], error) {
+func (q *Quark) sharePassword(shareId string) (*RespData[SharePasswordData], pan.DriverErrorInterface) {
 	r := q.sessionClient.R()
 	var successResult RespData[SharePasswordData]
 	var errorResult Resp
@@ -504,21 +499,11 @@ func (q *Quark) SharePassword(shareId string) (*RespData[SharePasswordData], err
 	})
 	// password
 	response, err := r.Post("/share/password")
-	if err != nil {
-		return nil, err
-	}
-	if response.IsErrorState() {
-		return nil, fmt.Errorf("code: %d, msg: %s", errorResult.Code, errorResult.Msg)
-	}
-	if successResult.Status >= 400 || successResult.Code != 0 {
-		return nil, fmt.Errorf("code: %d, msg: %s", successResult.Code, successResult.Msg)
-	}
-
-	return &successResult, nil
+	return funReturnBySuccess(err, response, errorResult, successResult)
 }
 
-func (q *Quark) shareDetail() ([]ShareList, error) {
-	shareList := make([]ShareList, 0)
+func (q *Quark) shareDetail() ([]*ShareList, pan.DriverErrorInterface) {
+	shareList := make([]*ShareList, 0)
 	r := q.sessionClient.R()
 	page := 1
 	size := 100
@@ -534,17 +519,12 @@ func (q *Quark) shareDetail() ([]ShareList, error) {
 		query["_page"] = strconv.Itoa(page)
 		r.SetQueryParams(query)
 		response, err := r.Get("/share/mypage/detail")
-		if err != nil {
-			return nil, err
-		}
-		if response.IsErrorState() {
-			return nil, fmt.Errorf("code: %d, msg: %s", errorResult.Code, errorResult.Msg)
-		}
-		if successResult.Status >= 400 || successResult.Code != 0 {
-			return nil, fmt.Errorf("code: %d, msg: %s", successResult.Code, successResult.Msg)
+		result, e := funReturnBySuccessMeta(err, response, errorResult, successResult)
+		if e != nil {
+			return nil, e
 		}
 		shareList = append(shareList, successResult.Data.List...)
-		if page*size >= successResult.Metadata.Total {
+		if page*size >= result.Metadata.Total {
 			break
 		}
 		page++
@@ -553,7 +533,7 @@ func (q *Quark) shareDetail() ([]ShareList, error) {
 	return shareList, nil
 }
 
-func (q *Quark) ShareDelete(shareIds []string) error {
+func (q *Quark) shareDelete(shareIds []string) (*Resp, error) {
 	r := q.sessionClient.R()
 	var result Resp
 	r.SetSuccessResult(&result)
@@ -563,15 +543,5 @@ func (q *Quark) ShareDelete(shareIds []string) error {
 	})
 	// share/delete
 	response, err := r.Post("/share/delete")
-	if err != nil {
-		return err
-	}
-	if response.IsErrorState() {
-		return fmt.Errorf("code: %d, msg: %s", result.Code, result.Msg)
-	}
-	if result.Status >= 400 || result.Code != 0 {
-		return fmt.Errorf("code: %d, msg: %s", result.Code, result.Msg)
-	}
-
-	return nil
+	return funReturn(err, response, result)
 }

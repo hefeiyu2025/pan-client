@@ -10,9 +10,10 @@ type Properties interface {
 type Json map[string]interface{}
 
 type DiskResp struct {
-	Used  uint64 `json:"used"`
-	Free  uint64 `json:"free"`
-	Total uint64 `json:"total"`
+	Used  int64
+	Free  int64
+	Total int64
+	Ext   Json
 }
 
 type ListReq struct {
@@ -131,5 +132,29 @@ type Task struct {
 }
 
 type DelShareReq struct {
-	ShareId string
+	ShareIds []string
+}
+
+type NewShareReq struct {
+	// 分享的文件ID
+	Fids []string
+	// 分享标题
+	Title string
+	// 需要密码
+	NeedPassCode bool
+	// quark 1 无限期 2 1天 3 7天 4 30天
+	// thunder -1 不限 1 1天 2 2天 3 3天 4 4天 如此类推
+	ExpiredType int
+}
+
+type ShareData struct {
+	ShareUrl string
+	ShareId  string
+	Title    string
+	PassCode string
+	Ext      Json
+}
+
+type ShareListReq struct {
+	ShareIds []string
 }

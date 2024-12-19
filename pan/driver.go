@@ -311,8 +311,8 @@ func (b *BaseOperate) BaseDownloadFile(req DownloadFileReq,
 }
 
 type Share interface {
-	ShareList()
-	NewShare()
+	ShareList(req ShareListReq) ([]*ShareData, error)
+	NewShare(req NewShareReq) (*ShareData, error)
 	DeleteShare(req DelShareReq) error
 }
 

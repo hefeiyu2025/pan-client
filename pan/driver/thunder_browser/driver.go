@@ -106,20 +106,24 @@ func (tb *ThunderBrowser) Init() error {
 }
 
 func (tb *ThunderBrowser) Drop() error {
-	return pan.OnlyMsg("not support")
+	return pan.OnlyMsg("drop not support")
 }
 
 func (tb *ThunderBrowser) Disk() (*pan.DiskResp, error) {
-	return nil, pan.OnlyMsg("not support")
-	//storageResp, err := tb.userStorage()
-	//if err != nil {
-	//	return nil, err
-	//}
-	//return &pan.DiskResp{
-	//	Total: storageResp.Data.Total / 1024 / 1024,
-	//	Free:  storageResp.Data.Free / 1024 / 1024,
-	//	Used:  storageResp.Data.Used / 1024 / 1024,
-	//}, nil
+	about, err := tb.about()
+	if err != nil {
+		return nil, err
+	}
+	total, _ := strconv.ParseInt(about.Quota.Limit, 10, 64)
+	usage, _ := strconv.ParseInt(about.Quota.Usage, 10, 64)
+	return &pan.DiskResp{
+		Total: total / 1024 / 1024,
+		Free:  (total - usage) / 1024 / 1024,
+		Used:  usage / 1024 / 1024,
+		Ext: map[string]interface{}{
+			QuotaCreateOfflineTaskLimit: about.Quotas[QuotaCreateOfflineTaskLimit],
+		},
+	}, nil
 }
 func (tb *ThunderBrowser) List(req pan.ListReq) ([]*pan.PanObj, error) {
 	queryDir := req.Dir
@@ -410,7 +414,7 @@ func (tb *ThunderBrowser) UploadFile(req pan.UploadFileReq) error {
 		Name:       remoteName,
 		Size:       stat.Size(),
 		Hash:       gcid,
-		UploadType: UPLOAD_TYPE_RESUMABLE,
+		UploadType: UploadTypeResumable,
 		Space:      ThunderDriveSpace,
 	})
 
@@ -419,7 +423,7 @@ func (tb *ThunderBrowser) UploadFile(req pan.UploadFileReq) error {
 	}
 
 	param := resp.Resumable.Params
-	if resp.UploadType == UPLOAD_TYPE_RESUMABLE {
+	if resp.UploadType == UploadTypeResumable {
 		param.Endpoint = strings.TrimLeft(param.Endpoint, param.Bucket+".")
 		s, err := session.NewSession(&aws.Config{
 			Credentials: credentials.NewStaticCredentials(param.AccessKeyID, param.AccessKeySecret, param.SecurityToken),
@@ -504,7 +508,7 @@ func (tb *ThunderBrowser) OfflineDownload(req pan.OfflineDownloadReq) (*pan.Task
 		Kind:       FILE,
 		ParentId:   parentId,
 		Name:       remoteName,
-		UploadType: UPLOAD_TYPE_URL,
+		UploadType: UploadTypeUrl,
 		Space:      ThunderDriveSpace,
 		Url: Url{
 			Url:   req.Url,
@@ -553,14 +557,52 @@ func (tb *ThunderBrowser) TaskList(req pan.TaskListReq) ([]*pan.Task, error) {
 	return panTasks, nil
 }
 
-func (tb *ThunderBrowser) ShareList() {
-
+func (tb *ThunderBrowser) ShareList(req pan.ShareListReq) ([]*pan.ShareData, error) {
+	shareList, err := tb.shareList(req.ShareIds...)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*pan.ShareData, 0)
+	for _, share := range shareList {
+		result = append(result, &pan.ShareData{
+			ShareId:  share.ShareId,
+			ShareUrl: share.ShareUrl,
+			PassCode: share.PassCode,
+			Title:    share.Title,
+		})
+	}
+	return result, nil
 }
-func (tb *ThunderBrowser) NewShare() {
-
+func (tb *ThunderBrowser) NewShare(req pan.NewShareReq) (*pan.ShareData, error) {
+	share, err := tb.createShare(CreateShareReq{
+		FileIds: req.Fids,
+		ShareTo: "copy",
+		Params: CreateShareParams{
+			SubscribePush:      false,
+			WithPassCodeInLink: req.NeedPassCode,
+		},
+		Title:          req.Title,
+		RestoreLimit:   "-1",
+		ExpirationDays: strconv.Itoa(req.ExpiredType),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &pan.ShareData{
+		ShareId:  share.ShareId,
+		ShareUrl: share.ShareUrl,
+		PassCode: share.PassCode,
+	}, nil
 }
 func (tb *ThunderBrowser) DeleteShare(req pan.DelShareReq) error {
-	return tb.deleteShare(req.ShareId)
+	shareIds := req.ShareIds
+	for _, shareId := range shareIds {
+		err := tb.deleteShare(shareId)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func init() {

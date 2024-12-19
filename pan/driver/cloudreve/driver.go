@@ -88,9 +88,9 @@ func (c *Cloudreve) Disk() (*pan.DiskResp, error) {
 		return nil, err
 	}
 	return &pan.DiskResp{
-		Total: storageResp.Data.Total / 1024 / 1024,
-		Free:  storageResp.Data.Free / 1024 / 1024,
-		Used:  storageResp.Data.Used / 1024 / 1024,
+		Total: int64(storageResp.Data.Total / 1024 / 1024),
+		Free:  int64(storageResp.Data.Free / 1024 / 1024),
+		Used:  int64(storageResp.Data.Used / 1024 / 1024),
 	}, nil
 }
 func (c *Cloudreve) List(req pan.ListReq) ([]*pan.PanObj, error) {
@@ -515,9 +515,11 @@ func (c *Cloudreve) TaskList(req pan.TaskListReq) ([]*pan.Task, error) {
 	return nil, pan.OnlyMsg("task list not support")
 }
 
-func (c *Cloudreve) ShareList() {}
-func (c *Cloudreve) NewShare() {
-
+func (c *Cloudreve) ShareList(req pan.ShareListReq) ([]*pan.ShareData, error) {
+	return nil, pan.OnlyMsg("share list not support")
+}
+func (c *Cloudreve) NewShare(req pan.NewShareReq) (*pan.ShareData, error) {
+	return nil, pan.OnlyMsg("new share not support")
 }
 func (c *Cloudreve) DeleteShare(req pan.DelShareReq) error {
 	return pan.OnlyMsg("delete share not support")

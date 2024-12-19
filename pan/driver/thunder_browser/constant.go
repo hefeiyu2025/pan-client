@@ -49,23 +49,27 @@ const (
 )
 
 const (
-	UPLOAD_TYPE_UNKNOWN = "UPLOAD_TYPE_UNKNOWN"
-	//UPLOAD_TYPE_FORM      = "UPLOAD_TYPE_FORM"
-	UPLOAD_TYPE_RESUMABLE = "UPLOAD_TYPE_RESUMABLE"
-	UPLOAD_TYPE_URL       = "UPLOAD_TYPE_URL"
+	UploadTypeUnknown   = "UPLOAD_TYPE_UNKNOWN"
+	UploadTypeForm      = "UPLOAD_TYPE_FORM"
+	UploadTypeResumable = "UPLOAD_TYPE_RESUMABLE"
+	UploadTypeUrl       = "UPLOAD_TYPE_URL"
 )
 
 const (
-	PHASE_TYPE_ERROR    = "PHASE_TYPE_ERROR"
-	PHASE_TYPE_RUNNING  = "PHASE_TYPE_RUNNING"
-	PHASE_TYPE_PENDING  = "PHASE_TYPE_PENDING"
-	PHASE_TYPE_COMPLETE = "PHASE_TYPE_COMPLETE"
+	PhaseTypeError    = "PHASE_TYPE_ERROR"
+	PhaseTypeRunning  = "PHASE_TYPE_RUNNING"
+	PhaseTypePending  = "PHASE_TYPE_PENDING"
+	PhaseTypeComplete = "PHASE_TYPE_COMPLETE"
 )
 
 const (
-	TASK_TYPE_OFFLINE        = "offline"
-	TASK_TYPE_MOVE           = "move"
-	TASK_TYPE_UPLOAD         = "upload"
-	TASK_TYPE_EVENT_DELETION = "event-deletion"
-	TASK_TYPE_DELETEFILE     = "deletefile"
+	TaskTypeOffline       = "offline"
+	TaskTypeMove          = "move"
+	TaskTypeUpload        = "upload"
+	TaskTypeEventDeletion = "event-deletion"
+	TaskTypeDeleteFile    = "deletefile"
+)
+
+const (
+	QuotaCreateOfflineTaskLimit = "CREATE_OFFLINE_TASK_LIMIT"
 )

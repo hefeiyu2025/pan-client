@@ -81,9 +81,9 @@ func (q *Quark) Disk() (*pan.DiskResp, error) {
 		return nil, err
 	}
 	return &pan.DiskResp{
-		Total: uint64(memberResp.Data.TotalCapacity / 1024 / 1024),
-		Free:  uint64((memberResp.Data.TotalCapacity - memberResp.Data.UseCapacity) / 1024 / 1024),
-		Used:  uint64(memberResp.Data.UseCapacity / 1024 / 1024),
+		Total: memberResp.Data.TotalCapacity / 1024 / 1024,
+		Free:  (memberResp.Data.TotalCapacity - memberResp.Data.UseCapacity) / 1024 / 1024,
+		Used:  memberResp.Data.UseCapacity / 1024 / 1024,
 	}, nil
 }
 func (q *Quark) List(req pan.ListReq) ([]*pan.PanObj, error) {
@@ -502,12 +502,63 @@ func (q *Quark) TaskList(req pan.TaskListReq) ([]*pan.Task, error) {
 	return nil, pan.OnlyMsg("task list not support")
 }
 
-func (q *Quark) ShareList() {}
-func (q *Quark) NewShare() {
-
+func (q *Quark) ShareList(req pan.ShareListReq) ([]*pan.ShareData, error) {
+	needFilter := len(req.ShareIds) > 0
+	details, err := q.shareDetail()
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*pan.ShareData, 0)
+	for _, share := range details {
+		if needFilter {
+			exist := false
+			for _, shareId := range req.ShareIds {
+				if shareId == share.ShareId {
+					exist = true
+					break
+				}
+			}
+			if !exist {
+				continue
+			}
+		}
+		result = append(result, &pan.ShareData{
+			ShareId:  share.ShareId,
+			ShareUrl: share.ShareUrl,
+			PassCode: share.Passcode,
+			Title:    share.Title,
+		})
+	}
+	return result, nil
+}
+func (q *Quark) NewShare(req pan.NewShareReq) (*pan.ShareData, error) {
+	urlType := 1
+	if req.NeedPassCode {
+		urlType = 2
+	}
+	shareId, err := q.share(ShareReq{
+		FidList:     req.Fids,
+		Title:       req.Title,
+		UrlType:     urlType,
+		ExpiredType: req.ExpiredType,
+	})
+	if err != nil {
+		return nil, err
+	}
+	resp, err := q.sharePassword(shareId)
+	if err != nil {
+		return nil, err
+	}
+	return &pan.ShareData{
+		ShareId:  shareId,
+		ShareUrl: resp.Data.ShareUrl,
+		PassCode: resp.Data.Passcode,
+		Title:    resp.Data.Title,
+	}, nil
 }
 func (q *Quark) DeleteShare(req pan.DelShareReq) error {
-	return pan.OnlyMsg("delete share not support")
+	_, err := q.shareDelete(req.ShareIds)
+	return err
 }
 
 func init() {

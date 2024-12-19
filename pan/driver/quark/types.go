@@ -406,7 +406,7 @@ type ShareDetail struct {
 	NotifyFollow struct {
 		Allow int `json:"allow"`
 	} `json:"notify_follow"`
-	List []ShareList `json:"list"`
+	List []*ShareList `json:"list"`
 }
 
 type DownloadData struct {
