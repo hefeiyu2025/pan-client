@@ -197,7 +197,7 @@ func (tb *ThunderBrowser) makeDir(dirName, dirId string) (*MkdirResponse, pan.Dr
 
 func (tb *ThunderBrowser) move(srcIds []string, destId string) pan.DriverErrorInterface {
 	_, err := tb.request(func(r *req.Request) (*req.Response, error) {
-		r.SetPathParams(map[string]string{
+		r.SetQueryParams(map[string]string{
 			"_from": ThunderDriveSpace,
 		})
 		r.SetBody(pan.Json{
@@ -292,6 +292,18 @@ func (tb *ThunderBrowser) uploadTask(body UploadTaskRequest) (*UploadTaskRespons
 	if err != nil {
 		return nil, err
 	}
+	return &successResult, err
+}
+
+func (tb *ThunderBrowser) taskInfo(taskId string) (*Task, pan.DriverErrorInterface) {
+	var successResult Task
+	_, err := tb.request(func(r *req.Request) (*req.Response, error) {
+		r.SetSuccessResult(&successResult)
+		r.SetPathParams(map[string]string{
+			"taskId": taskId,
+		})
+		return r.Get(API_URL + "/tasks/{taskId}")
+	})
 	return &successResult, err
 }
 
@@ -448,7 +460,15 @@ func (tb *ThunderBrowser) about() (*AboutResp, pan.DriverErrorInterface) {
 	return &successResult, err
 }
 
-// 还要一个保存分享文件的方法
+func (tb *ThunderBrowser) restore(restoreReq RestoreReq) (*RestoreResp, pan.DriverErrorInterface) {
+	var successResult RestoreResp
+	_, err := tb.request(func(r *req.Request) (*req.Response, error) {
+		r.SetSuccessResult(&successResult)
+		r.SetBody(restoreReq)
+		return r.Post(API_URL + "/share/restore")
+	})
+	return &successResult, err
+}
 
 func (tb *ThunderBrowser) request(request func(r *req.Request) (*req.Response, error)) (*req.Response, pan.DriverErrorInterface) {
 	r := tb.sessionClient.R()

@@ -156,3 +156,20 @@ func TestOfflineDownload(t *testing.T) {
 		fmt.Println(string(marshal))
 	}
 }
+
+func TestShareRestore(t *testing.T) {
+	defer GracefulExist()
+	client, err := GetClient(pan.ThunderBrowser)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = client.ShareRestore(pan.ShareRestoreReq{
+		ShareUrl:  "https://pan.xunlei.com/s/VOESxSgsp_Zg1E4WDWxx689sA1?pwd=jab2",
+		TargetDir: "/tmpdata",
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+}

@@ -314,6 +314,7 @@ type Share interface {
 	ShareList(req ShareListReq) ([]*ShareData, error)
 	NewShare(req NewShareReq) (*ShareData, error)
 	DeleteShare(req DelShareReq) error
+	ShareRestore(req ShareRestoreReq) error
 }
 
 type PropertiesOperate struct {

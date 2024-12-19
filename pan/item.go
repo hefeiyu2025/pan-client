@@ -158,3 +158,13 @@ type ShareData struct {
 type ShareListReq struct {
 	ShareIds []string
 }
+
+type ShareRestoreReq struct {
+	// 分享的具体链接，带pwd
+	ShareUrl string
+	// 下面的有值会优先处理
+	ShareId  string
+	PassCode string
+	// 保存的目录
+	TargetDir string
+}

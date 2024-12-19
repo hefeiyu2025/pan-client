@@ -561,6 +561,10 @@ func (q *Quark) DeleteShare(req pan.DelShareReq) error {
 	return err
 }
 
+func (q *Quark) ShareRestore(req pan.ShareRestoreReq) error {
+	return pan.OnlyMsg("share restore not support ")
+}
+
 func init() {
 	pan.RegisterDriver(pan.Quark, func() pan.Driver {
 		return &Quark{

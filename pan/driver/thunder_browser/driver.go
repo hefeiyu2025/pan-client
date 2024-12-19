@@ -11,10 +11,12 @@ import (
 	"github.com/imroc/req/v3"
 	logger "github.com/sirupsen/logrus"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type ThunderBrowser struct {
@@ -601,6 +603,70 @@ func (tb *ThunderBrowser) DeleteShare(req pan.DelShareReq) error {
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (tb *ThunderBrowser) ShareRestore(req pan.ShareRestoreReq) error {
+	passCode := req.PassCode
+	shareId := req.ShareId
+	targetDir := req.TargetDir
+	if targetDir == "" {
+		targetDir = "/"
+	}
+	if req.ShareId == "" {
+		if req.ShareUrl == "" {
+			return pan.OnlyMsg("share url is null")
+		}
+		// 解析URL
+		parsedURL, err := url.Parse(req.ShareUrl)
+		if err != nil {
+			return err
+		}
+
+		// 获取查询参数
+		queryParams := parsedURL.Query()
+		shareId = strings.TrimLeft(parsedURL.Path, "/s/")
+		// 从查询参数中提取分享ID和密码
+		passCode = queryParams.Get("pwd")
+	}
+	parentDir, err := tb.Mkdir(pan.MkdirReq{
+		NewPath: targetDir,
+	})
+	if err != nil {
+		return err
+	}
+	share, err := tb.getShare(ShareDetailReq{
+		ShareId:  shareId,
+		PassCode: passCode,
+	})
+	if err != nil {
+		return err
+	}
+	fileIds := make([]string, 0)
+	for _, file := range share.Files {
+		fileIds = append(fileIds, file.ID)
+	}
+	restore, err := tb.restore(RestoreReq{
+		ParentId:        parentDir.Id,
+		ShareId:         shareId,
+		PassCodeToken:   share.PassCodeToken,
+		AncestorIds:     nil,
+		FileIds:         fileIds,
+		SpecifyParentId: true,
+	})
+	if err != nil {
+		return err
+	}
+	for {
+		info, err := tb.taskInfo(restore.RestoreTaskId)
+		if err != nil {
+			return err
+		}
+		if info.Phase == PhaseTypeComplete {
+			break
+		}
+		time.Sleep(time.Second)
 	}
 	return nil
 }

@@ -524,6 +524,9 @@ func (c *Cloudreve) NewShare(req pan.NewShareReq) (*pan.ShareData, error) {
 func (c *Cloudreve) DeleteShare(req pan.DelShareReq) error {
 	return pan.OnlyMsg("delete share not support")
 }
+func (c *Cloudreve) ShareRestore(req pan.ShareRestoreReq) error {
+	return pan.OnlyMsg("share restore not support ")
+}
 
 func init() {
 	pan.RegisterDriver(pan.Cloudreve, func() pan.Driver {

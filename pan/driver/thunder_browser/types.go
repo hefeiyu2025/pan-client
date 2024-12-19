@@ -471,3 +471,21 @@ type Quota struct {
 	PlayTimesUsage string `json:"play_times_usage"`
 	IsUnlimited    bool   `json:"is_unlimited"`
 }
+
+type RestoreReq struct {
+	ParentId        string        `json:"parent_id"`
+	ShareId         string        `json:"share_id"`
+	PassCodeToken   string        `json:"pass_code_token"`
+	AncestorIds     []interface{} `json:"ancestor_ids"`
+	FileIds         []string      `json:"file_ids"`
+	SpecifyParentId bool          `json:"specify_parent_id"`
+}
+
+type RestoreResp struct {
+	ShareStatus     string      `json:"share_status"`
+	ShareStatusText string      `json:"share_status_text"`
+	FileId          string      `json:"file_id"`
+	RestoreStatus   string      `json:"restore_status"`
+	RestoreTaskId   string      `json:"restore_task_id"`
+	Params          interface{} `json:"params"`
+}
