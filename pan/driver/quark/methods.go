@@ -190,16 +190,11 @@ func (q *Quark) objectDelete(objIds []string) pan.DriverErrorInterface {
 	})
 	// object
 	response, err := r.Post("/file/delete")
-	if err != nil {
-		return pan.OnlyError(err)
+	result, e := funReturnBySuccessMeta(err, response, errorResult, successResult)
+	if e != nil {
+		return e
 	}
-	if response.IsErrorState() {
-		return pan.CodeMsg(errorResult.Code, errorResult.Msg)
-	}
-	if successResult.Status >= 400 || successResult.Code != 0 {
-		return pan.CodeMsg(successResult.Code, successResult.Msg)
-	}
-	finish := successResult.Data.Finish
+	finish := result.Data.Finish
 	return checkTaskSuccess(finish, successResult, q)
 }
 
@@ -502,7 +497,7 @@ func (q *Quark) sharePassword(shareId string) (*RespData[SharePasswordData], pan
 	return funReturnBySuccess(err, response, errorResult, successResult)
 }
 
-func (q *Quark) shareDetail() ([]*ShareList, pan.DriverErrorInterface) {
+func (q *Quark) shareList() ([]*ShareList, pan.DriverErrorInterface) {
 	shareList := make([]*ShareList, 0)
 	r := q.sessionClient.R()
 	page := 1
@@ -544,4 +539,71 @@ func (q *Quark) shareDelete(shareIds []string) (*Resp, error) {
 	// share/delete
 	response, err := r.Post("/share/delete")
 	return funReturn(err, response, result)
+}
+
+func (q *Quark) shareToken(shareTokenReq ShareTokenReq) (*RespData[ShareTokenResp], error) {
+	r := q.sessionClient.R()
+	var successResult RespData[ShareTokenResp]
+	var errorResult Resp
+	r.SetSuccessResult(&successResult)
+	r.SetErrorResult(&errorResult)
+	r.SetBody(shareTokenReq)
+	response, err := r.Post("/share/sharepage/token")
+	return funReturnBySuccess(err, response, errorResult, successResult)
+}
+
+func (q *Quark) shareDetail(shareDetailReq ShareDetailReq) (*ShareDetailResp, error) {
+	r := q.sessionClient.R()
+	page := 1
+	size := 100
+	query := map[string]string{
+		"pwd_id":       shareDetailReq.PwdId,
+		"stoken":       shareDetailReq.Stoken,
+		"pdir_fid":     "0",
+		"force":        "0",
+		"_fetch_share": "1",
+		"_size":        strconv.Itoa(size),
+		"_fetch_total": "1",
+	}
+	var successResult RespDataWithMeta[ShareDetailResp, SortMeta]
+	var errorResult Resp
+	r.SetSuccessResult(&successResult)
+	r.SetErrorResult(&errorResult)
+	returnResult := &ShareDetailResp{
+		IsOwner: 0,
+		Share:   nil,
+		List:    make([]*File, 0),
+	}
+	for {
+		query["_page"] = strconv.Itoa(page)
+		r.SetQueryParams(query)
+		response, err := r.Get("/share/sharepage/detail")
+		result, e := funReturnBySuccessMeta(err, response, errorResult, successResult)
+		if e != nil {
+			return nil, e
+		}
+		returnResult.Share = successResult.Data.Share
+		returnResult.List = append(returnResult.List, successResult.Data.List...)
+		if page*size >= result.Metadata.Total {
+			break
+		}
+		page++
+	}
+
+	return returnResult, nil
+}
+
+func (q *Quark) shareRestore(restoreReq RestoreReq) pan.DriverErrorInterface {
+	r := q.sessionClient.R()
+	var successResult RespDataWithMeta[TaskDoing, TaskMeta]
+	var errorResult Resp
+	r.SetSuccessResult(&successResult)
+	r.SetErrorResult(&errorResult)
+	r.SetBody(restoreReq)
+	response, err := r.Post("/share/sharepage/save")
+	result, e := funReturnBySuccessMeta(err, response, errorResult, successResult)
+	if e != nil {
+		return e
+	}
+	return checkTaskSuccess(false, *result, q)
 }

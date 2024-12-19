@@ -7,6 +7,7 @@ import (
 	"github.com/imroc/req/v3"
 	logger "github.com/sirupsen/logrus"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -276,7 +277,7 @@ func (q *Quark) Move(req pan.MovieReq) error {
 	if err != nil {
 		return pan.OnlyError(err)
 	}
-	for key, _ := range reloadDirId {
+	for key := range reloadDirId {
 		q.Del(cacheDirectoryPrefix + key)
 	}
 	return nil
@@ -314,7 +315,7 @@ func (q *Quark) Delete(req pan.DeleteReq) error {
 		if err != nil {
 			return err
 		}
-		for key, _ := range reloadDirId {
+		for key := range reloadDirId {
 			q.Del(cacheDirectoryPrefix + key)
 		}
 	}
@@ -425,7 +426,7 @@ func (q *Quark) UploadFile(req pan.UploadFileReq) error {
 			AuthInfo:   pre.Data.AuthInfo,
 			UploadUrl:  pre.Data.UploadUrl,
 			MineType:   mimeType,
-			PartNumber: int(partNumber),
+			PartNumber: partNumber,
 			TaskId:     pre.Data.TaskId,
 			Reader:     pr,
 		})
@@ -504,7 +505,7 @@ func (q *Quark) TaskList(req pan.TaskListReq) ([]*pan.Task, error) {
 
 func (q *Quark) ShareList(req pan.ShareListReq) ([]*pan.ShareData, error) {
 	needFilter := len(req.ShareIds) > 0
-	details, err := q.shareDetail()
+	details, err := q.shareList()
 	if err != nil {
 		return nil, err
 	}
@@ -562,7 +563,52 @@ func (q *Quark) DeleteShare(req pan.DelShareReq) error {
 }
 
 func (q *Quark) ShareRestore(req pan.ShareRestoreReq) error {
-	return pan.OnlyMsg("share restore not support ")
+	if req.ShareUrl == "" {
+		return pan.OnlyMsg("share url must not null")
+	}
+	// 解析URL
+	parsedURL, err := url.Parse(req.ShareUrl)
+	if err != nil {
+		return err
+	}
+	pwdId := strings.TrimLeft(parsedURL.Path, "/s/")
+	targetDir, err := q.Mkdir(pan.MkdirReq{
+		NewPath: req.TargetDir,
+	})
+	if err != nil {
+		return err
+	}
+	token, err := q.shareToken(ShareTokenReq{
+		PwdId:    pwdId,
+		Passcode: req.PassCode,
+	})
+	if err != nil {
+		return err
+	}
+	stoken := token.Data.Stoken
+	detail, err := q.shareDetail(ShareDetailReq{
+		PwdId:  pwdId,
+		Stoken: stoken,
+	})
+	if err != nil {
+		return err
+	}
+	fidList := make([]string, 0)
+	fidTokenList := make([]string, 0)
+	for _, file := range detail.List {
+		fidList = append(fidList, file.Fid)
+		fidTokenList = append(fidTokenList, file.ShareFidToken)
+	}
+	err = q.shareRestore(RestoreReq{
+		FidList:      fidList,
+		FidTokenList: fidTokenList,
+		ToPdirFid:    targetDir.Id,
+		PwdId:        pwdId,
+		Stoken:       stoken,
+		PdirFid:      targetDir.Id,
+		Scene:        "link",
+	})
+	return err
 }
 
 func init() {

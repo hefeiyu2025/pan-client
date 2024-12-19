@@ -181,6 +181,7 @@ type File struct {
 			PagesNumber       int     `json:"pages_number"`
 		} `json:"classifier_result"`
 	} `json:"pdf_info,omitempty"`
+	ShareFidToken string `json:"share_fid_token"`
 }
 type Dir struct {
 	Finish bool   `json:"finish"`
@@ -436,4 +437,42 @@ type DownloadData struct {
 	UpdatedAt    int64  `json:"updated_at"`
 	PrivateExtra struct {
 	} `json:"_private_extra"`
+}
+type ShareTokenReq struct {
+	PwdId    string `json:"pwd_id"`
+	Passcode string `json:"passcode"`
+}
+type ShareTokenResp struct {
+	Subscribed bool   `json:"subscribed"`
+	Stoken     string `json:"stoken"`
+	ShareType  int    `json:"share_type"`
+	Author     struct {
+		MemberType string `json:"member_type"`
+		AvatarUrl  string `json:"avatar_url"`
+		NickName   string `json:"nick_name"`
+	} `json:"author"`
+	ExpiredType int    `json:"expired_type"`
+	ExpiredAt   int64  `json:"expired_at"`
+	Title       string `json:"title"`
+}
+
+type ShareDetailReq struct {
+	PwdId  string `json:"pwd_id"`
+	Stoken string `json:"stoken"`
+}
+
+type ShareDetailResp struct {
+	IsOwner int        `json:"is_owner"`
+	Share   *ShareList `json:"share"`
+	List    []*File    `json:"list"`
+}
+
+type RestoreReq struct {
+	FidList      []string `json:"fid_list"`
+	FidTokenList []string `json:"fid_token_list"`
+	ToPdirFid    string   `json:"to_pdir_fid"`
+	PwdId        string   `json:"pwd_id"`
+	Stoken       string   `json:"stoken"`
+	PdirFid      string   `json:"pdir_fid"`
+	Scene        string   `json:"scene"`
 }

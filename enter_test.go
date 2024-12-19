@@ -159,13 +159,13 @@ func TestOfflineDownload(t *testing.T) {
 
 func TestShare(t *testing.T) {
 	defer GracefulExist()
-	client, err := GetClient(pan.ThunderBrowser)
+	client, err := GetClient(pan.Quark)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	dir, err := client.Mkdir(pan.MkdirReq{
-		NewPath: "/僵",
+		NewPath: "/影视/僵",
 	})
 	if err != nil {
 		t.Error(err)
@@ -175,7 +175,7 @@ func TestShare(t *testing.T) {
 		Fids:         []string{dir.Id},
 		Title:        "我的分享",
 		NeedPassCode: false,
-		ExpiredType:  -1,
+		ExpiredType:  1,
 	})
 	if err != nil {
 		t.Error(err)
@@ -205,13 +205,22 @@ func TestShare(t *testing.T) {
 
 func TestShareRestore(t *testing.T) {
 	defer GracefulExist()
-	client, err := GetClient(pan.ThunderBrowser)
+	client, err := GetClient(pan.Quark)
 	if err != nil {
 		t.Error(err)
 		return
 	}
+	//err = client.ShareRestore(pan.ShareRestoreReq{
+	//	ShareUrl:  "https://pan.xunlei.com/s/VOESxSgsp_Zg1E4WDWxx689sA1?pwd=jab2",
+	//	TargetDir: "/tmpdata",
+	//})
+	//if err != nil {
+	//	t.Error(err)
+	//	return
+	//}
 	err = client.ShareRestore(pan.ShareRestoreReq{
-		ShareUrl:  "https://pan.xunlei.com/s/VOESxSgsp_Zg1E4WDWxx689sA1?pwd=jab2",
+		ShareUrl:  "https://pan.quark.cn/s/83dae5e77944",
+		PassCode:  "8uSJ",
 		TargetDir: "/tmpdata",
 	})
 	if err != nil {
