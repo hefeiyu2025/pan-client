@@ -110,7 +110,7 @@ type UploadCredential struct {
 
 // Sources 获取外链的结果响应
 type Sources struct {
-	URL    string `json:"url"`
+	Url    string `json:"url"`
 	Name   string `json:"name"`
 	Parent uint   `json:"parent"`
 	Error  string `json:"error,omitempty"`
@@ -304,6 +304,14 @@ type ShareListReq struct {
 
 type OneDriveUploadReq struct {
 	UploadUrl    string
+	LocalFile    string
+	UploadedSize int64
+	ChunkSize    int64
+}
+
+type Now61UploadReq struct {
+	UploadUrl    string
+	Credential   string
 	LocalFile    string
 	UploadedSize int64
 	ChunkSize    int64

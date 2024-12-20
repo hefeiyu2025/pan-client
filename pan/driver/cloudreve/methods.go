@@ -51,9 +51,9 @@ func (c *Cloudreve) config() (*RespData[SiteConfig], pan.DriverErrorInterface) {
 	if !successResult.Data.User.Anonymous {
 		for _, cookie := range response.Cookies() {
 			if cookie.Name == CookieSessionKey {
-				c.properties.CloudreveSession = cookie.Value
+				c.properties.Session = cookie.Value
 				c.properties.RefreshTime = time.Now().UnixMilli()
-				c.sessionClient.SetCommonCookies(&http.Cookie{Name: CookieSessionKey, Value: c.properties.CloudreveSession})
+				c.sessionClient.SetCommonCookies(&http.Cookie{Name: CookieSessionKey, Value: c.properties.Session})
 			}
 		}
 	} else {
@@ -406,6 +406,36 @@ func (c *Cloudreve) oneDriveUpload(req OneDriveUploadReq) (int64, pan.DriverErro
 			SetHeader("Content-Length", strconv.FormatInt(endSize-startSize, 10)).
 			SetHeader("Content-Range", "bytes "+strconv.FormatInt(startSize, 10)+"-"+strconv.FormatInt(endSize-1, 10)+"/"+strconv.FormatInt(pr.GetTotal(), 10)).
 			Put(req.UploadUrl)
+		if reqErr != nil {
+			return pr.GetUploaded(), pan.OnlyError(reqErr)
+		}
+		if response.IsErrorState() {
+			return pr.GetUploaded(), pan.OnlyMsg(response.String())
+		}
+
+		if pr.IsFinish() {
+			break
+		}
+	}
+	pr.Close()
+	return pr.GetUploaded(), pan.NoError()
+}
+
+func (c *Cloudreve) now61Upload(req Now61UploadReq) (int64, pan.DriverErrorInterface) {
+	uploadedSize := req.UploadedSize
+	pr, err := pan.NewProcessReader(req.LocalFile, req.ChunkSize, uploadedSize)
+	if err != nil {
+		return uploadedSize, err
+	}
+	for {
+		startSize, endSize := pr.NextChunk()
+		response, reqErr := c.defaultClient.R().SetBody(pr).
+			SetContentType("application/octet-stream").
+			SetHeader("Content-Length", strconv.FormatInt(endSize-startSize, 10)).
+			SetHeader("Authorization", req.Credential).
+			SetQueryParam("chunk", strconv.FormatInt(startSize/req.ChunkSize, 10)).
+			//SetHeader("Content-Range", "bytes "+strconv.FormatInt(startSize, 10)+"-"+strconv.FormatInt(endSize-1, 10)+"/"+strconv.FormatInt(pr.GetTotal(), 10)).
+			Post(req.UploadUrl)
 		if reqErr != nil {
 			return pr.GetUploaded(), pan.OnlyError(reqErr)
 		}

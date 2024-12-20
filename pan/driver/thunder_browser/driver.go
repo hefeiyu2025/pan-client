@@ -671,6 +671,10 @@ func (tb *ThunderBrowser) ShareRestore(req pan.ShareRestoreReq) error {
 	return nil
 }
 
+func (tb *ThunderBrowser) DirectLink(req pan.DirectLinkReq) ([]*pan.DirectLink, error) {
+	return nil, pan.OnlyMsg("direct link not support")
+}
+
 func init() {
 	pan.RegisterDriver(pan.ThunderBrowser, func() pan.Driver {
 		return &ThunderBrowser{

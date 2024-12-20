@@ -11,7 +11,7 @@ import (
 
 func TestDownloadAndUpload(t *testing.T) {
 	defer GracefulExist()
-	client, err := GetClient(pan.ThunderBrowser)
+	client, err := GetClient(pan.Cloudreve)
 	if err != nil {
 		t.Error(err)
 		return
@@ -227,4 +227,41 @@ func TestShareRestore(t *testing.T) {
 		t.Error(err)
 		return
 	}
+}
+
+func TestDirectLink(t *testing.T) {
+	defer GracefulExist()
+	client, err := GetClient(pan.Cloudreve)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	list, err := client.List(pan.ListReq{Dir: &pan.PanObj{
+		Path: "/",
+		Name: "test1",
+	}, Reload: true})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	links := make([]*pan.DirectLink, 0)
+	for _, item := range list {
+		if item.Type == "file" {
+			links = append(links, &pan.DirectLink{
+				FileId: item.Id,
+				Name:   item.Name,
+			})
+		}
+	}
+	link, err := client.DirectLink(pan.DirectLinkReq{List: links})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	marshal, err := json.Marshal(link)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	fmt.Println(string(marshal))
 }

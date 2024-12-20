@@ -611,6 +611,10 @@ func (q *Quark) ShareRestore(req pan.ShareRestoreReq) error {
 	return err
 }
 
+func (q *Quark) DirectLink(req pan.DirectLinkReq) ([]*pan.DirectLink, error) {
+	return nil, pan.OnlyMsg("direct link not support")
+}
+
 func init() {
 	pan.RegisterDriver(pan.Quark, func() pan.Driver {
 		return &Quark{

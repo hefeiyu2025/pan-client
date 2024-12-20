@@ -168,3 +168,12 @@ type ShareRestoreReq struct {
 	// 保存的目录
 	TargetDir string
 }
+type DirectLinkReq struct {
+	List []*DirectLink
+}
+
+type DirectLink struct {
+	FileId string
+	Name   string
+	Link   string
+}

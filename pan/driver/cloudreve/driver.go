@@ -25,10 +25,11 @@ type Cloudreve struct {
 }
 
 type CloudreveProperties struct {
-	CloudreveUrl     string `mapstructure:"url" json:"url" yaml:"url"`
-	CloudreveSession string `mapstructure:"session" json:"session" yaml:"session"`
-	RefreshTime      int64  `mapstructure:"refresh_time" json:"refresh_time" yaml:"refresh_time" default:"0"`
-	ChunkSize        int64  `mapstructure:"chunk_size" json:"chunk_size" yaml:"chunk_size" default:"104857600"` // 100M
+	Url         string `mapstructure:"url" json:"url" yaml:"url"`
+	Type        string `mapstructure:"type" json:"type" yaml:"type" default:"now61"`
+	Session     string `mapstructure:"session" json:"session" yaml:"session"`
+	RefreshTime int64  `mapstructure:"refresh_time" json:"refresh_time" yaml:"refresh_time" default:"0"`
+	ChunkSize   int64  `mapstructure:"chunk_size" json:"chunk_size" yaml:"chunk_size" default:"104857600"` // 100M
 }
 
 func (cp *CloudreveProperties) OnlyImportProperties() {
@@ -42,14 +43,14 @@ func (c *Cloudreve) Init() error {
 		return err
 	}
 	c.properties = &properties
-	if properties.CloudreveUrl == "" || properties.CloudreveSession == "" {
+	if properties.Url == "" || properties.Session == "" {
 		_ = c.WriteConfig(c.properties)
 		return fmt.Errorf("please set cloudreve url and session")
 	}
 	c.sessionClient = req.C().SetCommonHeader(HeaderUserAgent, DefaultUserAgent).
 		SetCommonHeader("Accept", "application/json, text/plain, */*").
-		SetTimeout(30 * time.Minute).SetBaseURL(c.properties.CloudreveUrl + "/api/v3").
-		SetCommonCookies(&http.Cookie{Name: CookieSessionKey, Value: c.properties.CloudreveSession})
+		SetTimeout(30 * time.Minute).SetBaseURL(c.properties.Url + "/api/v3").
+		SetCommonCookies(&http.Cookie{Name: CookieSessionKey, Value: c.properties.Session})
 	c.defaultClient = req.C().SetCommonHeader(HeaderUserAgent, DefaultUserAgent).SetTimeout(2 * time.Hour)
 	c.defaultClient.GetTransport().
 		WrapRoundTripFunc(func(rt http.RoundTripper) req.HttpRoundTripFunc {
@@ -458,23 +459,40 @@ func (c *Cloudreve) UploadFile(req pan.UploadFileReq) error {
 	if exist {
 		session = data.(UploadCredential)
 	}
+	switch c.properties.Type {
+	case Now61CloudreveType:
+		uploadedSize, err = c.now61Upload(Now61UploadReq{
+			UploadUrl:    session.UploadURLs[0],
+			Credential:   session.Credential,
+			LocalFile:    req.LocalFile,
+			UploadedSize: uploadedSize,
+			ChunkSize:    int64(session.ChunkSize),
+		})
+		if err != nil {
+			c.uploadErrAfter(md5Key, uploadedSize, session)
+			return err
+		}
+	case Huang1111CloudreveType:
+		uploadedSize, err = c.oneDriveUpload(OneDriveUploadReq{
+			UploadUrl:    session.UploadURLs[0],
+			LocalFile:    req.LocalFile,
+			UploadedSize: uploadedSize,
+			ChunkSize:    min(int64(session.ChunkSize), c.properties.ChunkSize),
+		})
+		if err != nil {
+			c.uploadErrAfter(md5Key, uploadedSize, session)
+			return err
+		}
 
-	uploadedSize, err = c.oneDriveUpload(OneDriveUploadReq{
-		UploadUrl:    session.UploadURLs[0],
-		LocalFile:    req.LocalFile,
-		UploadedSize: uploadedSize,
-		ChunkSize:    min(int64(session.ChunkSize), c.properties.ChunkSize),
-	})
-	if err != nil {
-		c.uploadErrAfter(md5Key, uploadedSize, session)
-		return err
+		_, err = c.oneDriveCallback(session.SessionID)
+		if err != nil {
+			c.uploadErrAfter(md5Key, uploadedSize, session)
+			return err
+		}
+	default:
+		return pan.OnlyMsg("not support Type")
 	}
 
-	_, err = c.oneDriveCallback(session.SessionID)
-	if err != nil {
-		c.uploadErrAfter(md5Key, uploadedSize, session)
-		return err
-	}
 	if req.Resumable {
 		c.Del(cacheSessionPrefix + md5Key)
 		c.Del(cacheChunkPrefix + md5Key)
@@ -526,6 +544,32 @@ func (c *Cloudreve) DeleteShare(req pan.DelShareReq) error {
 }
 func (c *Cloudreve) ShareRestore(req pan.ShareRestoreReq) error {
 	return pan.OnlyMsg("share restore not support ")
+}
+
+func (c *Cloudreve) DirectLink(req pan.DirectLinkReq) ([]*pan.DirectLink, error) {
+	fileList := req.List
+	fids := make([]string, 0)
+	for _, file := range fileList {
+		fids = append(fids, file.FileId)
+	}
+	resp, err := c.fileGetSource(ItemReq{
+		Item: Item{Items: fids},
+	})
+	if err != nil {
+		return nil, err
+	}
+	sources := resp.Data
+	nameUrlMap := make(map[string]string)
+	for _, source := range sources {
+		nameUrlMap[source.Name] = source.Url
+	}
+	for _, file := range fileList {
+		url, ok := nameUrlMap[file.Name]
+		if ok {
+			file.Link = url
+		}
+	}
+	return fileList, nil
 }
 
 func init() {

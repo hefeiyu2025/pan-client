@@ -56,6 +56,7 @@ type Operate interface {
 	DownloadFile(req DownloadFileReq) error
 	OfflineDownload(req OfflineDownloadReq) (*Task, error)
 	TaskList(req TaskListReq) ([]*Task, error)
+	DirectLink(req DirectLinkReq) ([]*DirectLink, error)
 }
 
 type BaseOperate struct {
