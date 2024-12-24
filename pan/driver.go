@@ -348,7 +348,6 @@ func (c *PropertiesOperate[T]) ReadConfig() error {
 	}
 	c.m.RLock()
 	defer c.m.RUnlock()
-	internal.SetDefaultByTag(c.Properties)
 	return internal.Viper.UnmarshalKey(ViperDriverPrefix+string(c.DriverType), c.Properties)
 }
 
