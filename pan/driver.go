@@ -342,6 +342,7 @@ func (c *PropertiesOperate[T]) GetId() string {
 }
 
 func (c *PropertiesOperate[T]) ReadConfig() error {
+	internal.SetDefaultByTag(c.Properties)
 	if c.Read != nil {
 		return c.Read(c.Properties)
 	}
