@@ -5,7 +5,6 @@ import (
 	"github.com/hefeiyu2025/pan-client/internal"
 	"github.com/hefeiyu2025/pan-client/pan"
 	"github.com/hefeiyu2025/pan-client/pan/driver/cloudreve"
-	"github.com/hefeiyu2025/pan-client/pan/driver/quark"
 )
 
 func init() {
@@ -22,5 +21,4 @@ func InitGob() {
 	gob.Register(&pan.PanObj{})
 	//gob.RegisterName("*cloudreve.UploadCredential", &cloudreve.UploadCredential{})
 	gob.RegisterName("cloudreve.UploadCredential", cloudreve.UploadCredential{})
-	gob.Register(quark.RespDataWithMeta[quark.FileUpPre, quark.FileUpPreMeta]{})
 }

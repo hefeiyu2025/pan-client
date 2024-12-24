@@ -24,6 +24,13 @@ const (
 	ThunderBrowser    DriverType = "thunder_browser"
 )
 
+type Properties interface {
+	// OnlyImportProperties 仅仅定义一个接口来进行继承
+	OnlyImportProperties()
+	GetId() string
+	GetDriverType() DriverType
+}
+
 type Driver interface {
 	Meta
 	Operate
@@ -31,10 +38,12 @@ type Driver interface {
 }
 
 type Meta interface {
-	Init() error
+	GetId() string
+	Init() (string, error)
+	InitByCustom(id string, read ConfigRW, write ConfigRW) (string, error)
 	Drop() error
-	ReadConfig(config Properties) error
-	WriteConfig(config Properties) error
+	ReadConfig() error
+	WriteConfig() error
 	Get(key string) (interface{}, bool)
 	GetOrDefault(key string, defFun DefaultFun) (interface{}, bool, error)
 	Set(key string, value interface{})
@@ -318,22 +327,37 @@ type Share interface {
 	ShareRestore(req ShareRestoreReq) error
 }
 
-type PropertiesOperate struct {
+type ConfigRW func(config Properties) error
+
+type PropertiesOperate[T Properties] struct {
+	Properties T
 	DriverType DriverType
 	m          sync.RWMutex
+	Read       ConfigRW
+	Write      ConfigRW
 }
 
-func (c *PropertiesOperate) ReadConfig(config Properties) error {
+func (c *PropertiesOperate[T]) GetId() string {
+	return c.Properties.GetId()
+}
+
+func (c *PropertiesOperate[T]) ReadConfig() error {
+	if c.Read != nil {
+		return c.Read(c.Properties)
+	}
 	c.m.RLock()
 	defer c.m.RUnlock()
-	internal.SetDefaultByTag(config)
-	return internal.Viper.UnmarshalKey(ViperDriverPrefix+string(c.DriverType), config)
+	internal.SetDefaultByTag(c.Properties)
+	return internal.Viper.UnmarshalKey(ViperDriverPrefix+string(c.DriverType), c.Properties)
 }
 
-func (c *PropertiesOperate) WriteConfig(config Properties) error {
+func (c *PropertiesOperate[T]) WriteConfig() error {
+	if c.Write != nil {
+		return c.Write(c.Properties)
+	}
 	c.m.Lock()
 	defer c.m.Unlock()
-	internal.Viper.Set(ViperDriverPrefix+string(c.DriverType), config)
+	internal.Viper.Set(ViperDriverPrefix+string(c.DriverType), c.Properties)
 	return internal.Viper.WriteConfig()
 }
 

@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/google/uuid"
 	"github.com/hefeiyu2025/pan-client/internal"
 	"github.com/hefeiyu2025/pan-client/pan"
 	"github.com/imroc/req/v3"
@@ -22,14 +23,14 @@ import (
 type ThunderBrowser struct {
 	sessionClient  *req.Client
 	downloadClient *req.Client
-	properties     *ThunderBrowserProperties
-	pan.PropertiesOperate
+	pan.PropertiesOperate[*ThunderBrowserProperties]
 	pan.CacheOperate
 	pan.CommonOperate
 	pan.BaseOperate
 }
 
 type ThunderBrowserProperties struct {
+	Id string `mapstructure:"id" json:"id" yaml:"id"`
 	// 登录方式1
 	Username string `mapstructure:"username" json:"username" yaml:"username"`
 	Password string `mapstructure:"password" json:"password" yaml:"password"`
@@ -53,24 +54,31 @@ type ThunderBrowserProperties struct {
 func (cp *ThunderBrowserProperties) OnlyImportProperties() {
 	// do nothing
 }
+func (cp *ThunderBrowserProperties) GetId() string {
+	if cp.Id == "" {
+		cp.Id = uuid.NewString()
+	}
+	return cp.Id
+}
 
-func (tb *ThunderBrowser) Init() error {
-
-	var properties ThunderBrowserProperties
-	err := tb.ReadConfig(&properties)
+func (cp *ThunderBrowserProperties) GetDriverType() pan.DriverType {
+	return pan.Cloudreve
+}
+func (tb *ThunderBrowser) Init() (string, error) {
+	err := tb.ReadConfig()
 	if err != nil {
-		return err
+		return "", err
 	}
-	tb.properties = &properties
-	if (properties.Username == "" || properties.Password == "") && properties.RefreshToken == "" {
-		_ = tb.WriteConfig(tb.properties)
-		return fmt.Errorf("please set login info ")
+	driverId := tb.GetId()
+	if (tb.Properties.Username == "" || tb.Properties.Password == "") && tb.Properties.RefreshToken == "" {
+		_ = tb.WriteConfig()
+		return driverId, fmt.Errorf("please set login info ")
 	}
-	tb.properties.DeviceID = internal.Md5HashStr(tb.properties.Username + tb.properties.Password)
+	tb.Properties.DeviceID = internal.Md5HashStr(tb.Properties.Username + tb.Properties.Password)
 	commonHeaderMap := map[string]string{
 		HeaderUserAgent:    BuildCustomUserAgent(PackageName, SdkVersion, ClientVersion),
 		"accept":           "application/json;charset=UTF-8",
-		"x-device-id":      tb.properties.DeviceID,
+		"x-device-id":      tb.Properties.DeviceID,
 		"x-client-id":      ClientID,
 		"x-client-version": ClientVersion,
 	}
@@ -81,30 +89,37 @@ func (tb *ThunderBrowser) Init() error {
 	if err != nil {
 
 		// refreshToken不为空，则先用token登录
-		if tb.properties.RefreshToken != "" {
-			tb.properties.DeviceID = internal.Md5HashStr(tb.properties.RefreshToken)
-			_, loginErr := tb.refreshToken(tb.properties.RefreshToken)
+		if tb.Properties.RefreshToken != "" {
+			tb.Properties.DeviceID = internal.Md5HashStr(tb.Properties.RefreshToken)
+			_, loginErr := tb.refreshToken(tb.Properties.RefreshToken)
 			if loginErr != nil {
-				_, loginErr = tb.login(tb.properties.Username, tb.properties.Password)
+				_, loginErr = tb.login(tb.Properties.Username, tb.Properties.Password)
 				if loginErr != nil {
-					return loginErr
+					return driverId, loginErr
 				}
 			}
 		} else {
-			_, loginErr := tb.login(tb.properties.Username, tb.properties.Password)
+			_, loginErr := tb.login(tb.Properties.Username, tb.Properties.Password)
 			if loginErr != nil {
-				return loginErr
+				return driverId, loginErr
 			}
 		}
 	}
 
 	tb.downloadClient = req.C().SetCommonHeader(HeaderUserAgent, DownloadUserAgent)
 
-	err = tb.WriteConfig(tb.properties)
+	err = tb.WriteConfig()
 	if err != nil {
-		return err
+		return driverId, err
 	}
-	return nil
+	return driverId, nil
+}
+
+func (tb *ThunderBrowser) InitByCustom(id string, read pan.ConfigRW, write pan.ConfigRW) (string, error) {
+	tb.Properties = &ThunderBrowserProperties{Id: id}
+	tb.PropertiesOperate.Write = write
+	tb.PropertiesOperate.Read = read
+	return tb.Init()
 }
 
 func (tb *ThunderBrowser) Drop() error {
@@ -678,7 +693,7 @@ func (tb *ThunderBrowser) DirectLink(req pan.DirectLinkReq) ([]*pan.DirectLink, 
 func init() {
 	pan.RegisterDriver(pan.ThunderBrowser, func() pan.Driver {
 		return &ThunderBrowser{
-			PropertiesOperate: pan.PropertiesOperate{
+			PropertiesOperate: pan.PropertiesOperate[*ThunderBrowserProperties]{
 				DriverType: pan.ThunderBrowser,
 			},
 			CacheOperate:  pan.CacheOperate{DriverType: pan.ThunderBrowser},

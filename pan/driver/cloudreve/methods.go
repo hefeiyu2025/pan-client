@@ -51,9 +51,9 @@ func (c *Cloudreve) config() (*RespData[SiteConfig], pan.DriverErrorInterface) {
 	if !successResult.Data.User.Anonymous {
 		for _, cookie := range response.Cookies() {
 			if cookie.Name == CookieSessionKey {
-				c.properties.Session = cookie.Value
-				c.properties.RefreshTime = time.Now().UnixMilli()
-				c.sessionClient.SetCommonCookies(&http.Cookie{Name: CookieSessionKey, Value: c.properties.Session})
+				c.Properties.Session = cookie.Value
+				c.Properties.RefreshTime = time.Now().UnixMilli()
+				c.sessionClient.SetCommonCookies(&http.Cookie{Name: CookieSessionKey, Value: c.Properties.Session})
 			}
 		}
 	} else {

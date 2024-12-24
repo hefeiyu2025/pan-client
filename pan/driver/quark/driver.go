@@ -2,6 +2,7 @@ package quark
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/hefeiyu2025/pan-client/internal"
 	"github.com/hefeiyu2025/pan-client/pan"
 	"github.com/imroc/req/v3"
@@ -17,14 +18,14 @@ import (
 type Quark struct {
 	sessionClient *req.Client
 	defaultClient *req.Client
-	properties    *QuarkProperties
-	pan.PropertiesOperate
+	pan.PropertiesOperate[*QuarkProperties]
 	pan.CacheOperate
 	pan.CommonOperate
 	pan.BaseOperate
 }
 
 type QuarkProperties struct {
+	Id          string `mapstructure:"id" json:"id" yaml:"id"`
 	Pus         string `mapstructure:"pus" json:"pus" yaml:"pus"`
 	Puus        string `mapstructure:"puus" json:"puus" yaml:"puus"`
 	RefreshTime int64  `mapstructure:"refresh_time" json:"refresh_time" yaml:"refresh_time" default:"0"`
@@ -35,16 +36,26 @@ func (cp *QuarkProperties) OnlyImportProperties() {
 	// do nothing
 }
 
-func (q *Quark) Init() error {
-	var properties QuarkProperties
-	err := q.ReadConfig(&properties)
-	if err != nil {
-		return err
+func (cp *QuarkProperties) GetId() string {
+	if cp.Id == "" {
+		cp.Id = uuid.NewString()
 	}
-	q.properties = &properties
-	if properties.Pus == "" || properties.Puus == "" {
-		_ = q.WriteConfig(q.properties)
-		return fmt.Errorf("please set pus and puus")
+	return cp.Id
+}
+
+func (cp *QuarkProperties) GetDriverType() pan.DriverType {
+	return pan.Quark
+}
+
+func (q *Quark) Init() (string, error) {
+	err := q.ReadConfig()
+	if err != nil {
+		return "", err
+	}
+	driverId := q.GetId()
+	if q.Properties.Pus == "" || q.Properties.Puus == "" {
+		_ = q.WriteConfig()
+		return driverId, fmt.Errorf("please set pus and puus")
 	}
 	q.sessionClient = req.C().
 		SetCommonHeaders(map[string]string{
@@ -54,22 +65,29 @@ func (q *Quark) Init() error {
 		}).
 		SetCommonQueryParam("pr", "ucpro").
 		SetCommonQueryParam("fr", "pc").
-		SetCommonCookies(&http.Cookie{Name: CookiePusKey, Value: q.properties.Pus}, &http.Cookie{Name: CookiePuusKey, Value: q.properties.Puus}).
+		SetCommonCookies(&http.Cookie{Name: CookiePusKey, Value: q.Properties.Pus}, &http.Cookie{Name: CookiePuusKey, Value: q.Properties.Puus}).
 		SetTimeout(30 * time.Minute).SetBaseURL("https://drive.quark.cn/1/clouddrive")
 	q.defaultClient = req.C().SetTimeout(30 * time.Minute)
 	// 若一小时内更新过，则不重新刷session
-	if q.properties.RefreshTime == 0 || time.Now().UnixMilli()-q.properties.RefreshTime > 60*60*1000 {
+	if q.Properties.RefreshTime == 0 || time.Now().UnixMilli()-q.Properties.RefreshTime > 60*60*1000 {
 		_, err = q.config()
 		if err != nil {
-			return err
+			return driverId, err
 		} else {
-			err = q.WriteConfig(q.properties)
+			err = q.WriteConfig()
 			if err != nil {
-				return err
+				return driverId, err
 			}
 		}
 	}
-	return nil
+	return driverId, nil
+}
+
+func (q *Quark) InitByCustom(id string, read pan.ConfigRW, write pan.ConfigRW) (string, error) {
+	q.Properties = &QuarkProperties{Id: id}
+	q.PropertiesOperate.Write = write
+	q.PropertiesOperate.Read = read
+	return q.Init()
 }
 
 func (q *Quark) Drop() error {
@@ -406,7 +424,7 @@ func (q *Quark) UploadFile(req pan.UploadFileReq) error {
 	}
 
 	// part up
-	partSize := min(int64(pre.Metadata.PartSize), q.properties.ChunkSize)
+	partSize := min(int64(pre.Metadata.PartSize), q.Properties.ChunkSize)
 	total := stat.Size()
 	left := total
 	partNumber := 1
@@ -618,7 +636,7 @@ func (q *Quark) DirectLink(req pan.DirectLinkReq) ([]*pan.DirectLink, error) {
 func init() {
 	pan.RegisterDriver(pan.Quark, func() pan.Driver {
 		return &Quark{
-			PropertiesOperate: pan.PropertiesOperate{
+			PropertiesOperate: pan.PropertiesOperate[*QuarkProperties]{
 				DriverType: pan.Quark,
 			},
 			CacheOperate:  pan.CacheOperate{DriverType: pan.Quark},

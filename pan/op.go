@@ -5,25 +5,36 @@ import (
 )
 
 var driverConstructorMap = map[DriverType]DriverConstructor{}
-var driverMap = map[DriverType]Driver{}
+var idMap = map[string]Driver{}
+var defaultDriverMap = map[DriverType]string{}
 
 func RegisterDriver(driverType DriverType, driver DriverConstructor) {
 	driverConstructorMap[driverType] = driver
 }
-func GetDriver(driverType DriverType) (Driver, error) {
-	driver, ok := driverMap[driverType]
+func GetDriver(id string, driverType DriverType, read ConfigRW, write ConfigRW) (Driver, error) {
+	if id == "" {
+		id = defaultDriverMap[driverType]
+	}
+	driver, ok := idMap[id]
 	if !ok {
 		tempDriver := driverConstructorMap[driverType]
 		if tempDriver == nil {
 			return nil, fmt.Errorf("driver %s not exist", driverType)
 		}
 		d := tempDriver()
-		err := d.Init()
+		driverId, err := d.InitByCustom(id, read, write)
 		if err != nil {
 			return nil, err
 		}
-		driverMap[driverType] = d
+		idMap[driverId] = d
+		if id == "" {
+			defaultDriverMap[driverType] = driverId
+		}
 		driver = d
 	}
 	return driver, nil
+}
+
+func RemoveDriver(id string) {
+	delete(idMap, id)
 }

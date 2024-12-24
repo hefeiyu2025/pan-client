@@ -2,6 +2,7 @@ package cloudreve
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/hefeiyu2025/pan-client/internal"
 	"github.com/hefeiyu2025/pan-client/pan"
 	"github.com/imroc/req/v3"
@@ -17,14 +18,14 @@ import (
 type Cloudreve struct {
 	sessionClient *req.Client
 	defaultClient *req.Client
-	properties    *CloudreveProperties
-	pan.PropertiesOperate
+	pan.PropertiesOperate[*CloudreveProperties]
 	pan.CacheOperate
 	pan.CommonOperate
 	pan.BaseOperate
 }
 
 type CloudreveProperties struct {
+	Id          string `mapstructure:"id" json:"id" yaml:"id"`
 	Url         string `mapstructure:"url" json:"url" yaml:"url"`
 	Type        string `mapstructure:"type" json:"type" yaml:"type" default:"now61"`
 	Session     string `mapstructure:"session" json:"session" yaml:"session"`
@@ -36,21 +37,31 @@ func (cp *CloudreveProperties) OnlyImportProperties() {
 	// do nothing
 }
 
-func (c *Cloudreve) Init() error {
-	var properties CloudreveProperties
-	err := c.ReadConfig(&properties)
-	if err != nil {
-		return err
+func (cp *CloudreveProperties) GetId() string {
+	if cp.Id == "" {
+		cp.Id = uuid.NewString()
 	}
-	c.properties = &properties
-	if properties.Url == "" || properties.Session == "" {
-		_ = c.WriteConfig(c.properties)
-		return fmt.Errorf("please set cloudreve url and session")
+	return cp.Id
+}
+
+func (cp *CloudreveProperties) GetDriverType() pan.DriverType {
+	return pan.Cloudreve
+}
+
+func (c *Cloudreve) Init() (string, error) {
+	err := c.ReadConfig()
+	if err != nil {
+		return "", err
+	}
+	driverId := c.GetId()
+	if c.Properties.Url == "" || c.Properties.Session == "" {
+		_ = c.WriteConfig()
+		return driverId, fmt.Errorf("please set cloudreve url and session")
 	}
 	c.sessionClient = req.C().SetCommonHeader(HeaderUserAgent, DefaultUserAgent).
 		SetCommonHeader("Accept", "application/json, text/plain, */*").
-		SetTimeout(30 * time.Minute).SetBaseURL(c.properties.Url + "/api/v3").
-		SetCommonCookies(&http.Cookie{Name: CookieSessionKey, Value: c.properties.Session})
+		SetTimeout(30 * time.Minute).SetBaseURL(c.Properties.Url + "/api/v3").
+		SetCommonCookies(&http.Cookie{Name: CookieSessionKey, Value: c.Properties.Session})
 	c.defaultClient = req.C().SetCommonHeader(HeaderUserAgent, DefaultUserAgent).SetTimeout(2 * time.Hour)
 	c.defaultClient.GetTransport().
 		WrapRoundTripFunc(func(rt http.RoundTripper) req.HttpRoundTripFunc {
@@ -65,18 +76,25 @@ func (c *Cloudreve) Init() error {
 			}
 		})
 	// 若一小时内更新过，则不重新刷session
-	if c.properties.RefreshTime == 0 || time.Now().UnixMilli()-c.properties.RefreshTime > 60*60*1000 {
+	if c.Properties.RefreshTime == 0 || time.Now().UnixMilli()-c.Properties.RefreshTime > 60*60*1000 {
 		_, err = c.config()
 		if err != nil {
-			return err
+			return driverId, err
 		} else {
-			err = c.WriteConfig(c.properties)
+			err = c.WriteConfig()
 			if err != nil {
-				return err
+				return driverId, err
 			}
 		}
 	}
-	return nil
+	return driverId, nil
+}
+
+func (c *Cloudreve) InitByCustom(id string, read pan.ConfigRW, write pan.ConfigRW) (string, error) {
+	c.Properties = &CloudreveProperties{Id: id}
+	c.PropertiesOperate.Write = write
+	c.PropertiesOperate.Read = read
+	return c.Init()
 }
 
 func (c *Cloudreve) Drop() error {
@@ -459,7 +477,7 @@ func (c *Cloudreve) UploadFile(req pan.UploadFileReq) error {
 	if exist {
 		session = data.(UploadCredential)
 	}
-	switch c.properties.Type {
+	switch c.Properties.Type {
 	case Now61CloudreveType:
 		uploadedSize, err = c.now61Upload(Now61UploadReq{
 			UploadUrl:    session.UploadURLs[0],
@@ -477,7 +495,7 @@ func (c *Cloudreve) UploadFile(req pan.UploadFileReq) error {
 			UploadUrl:    session.UploadURLs[0],
 			LocalFile:    req.LocalFile,
 			UploadedSize: uploadedSize,
-			ChunkSize:    min(int64(session.ChunkSize), c.properties.ChunkSize),
+			ChunkSize:    min(int64(session.ChunkSize), c.Properties.ChunkSize),
 		})
 		if err != nil {
 			c.uploadErrAfter(md5Key, uploadedSize, session)
@@ -575,7 +593,7 @@ func (c *Cloudreve) DirectLink(req pan.DirectLinkReq) ([]*pan.DirectLink, error)
 func init() {
 	pan.RegisterDriver(pan.Cloudreve, func() pan.Driver {
 		return &Cloudreve{
-			PropertiesOperate: pan.PropertiesOperate{
+			PropertiesOperate: pan.PropertiesOperate[*CloudreveProperties]{
 				DriverType: pan.Cloudreve,
 			},
 			CacheOperate:  pan.CacheOperate{DriverType: pan.Cloudreve},

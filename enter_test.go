@@ -3,6 +3,7 @@ package pan_client
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/hefeiyu2025/pan-client/internal"
 	"github.com/hefeiyu2025/pan-client/pan"
 	"github.com/hefeiyu2025/pan-client/pan/driver/thunder_browser"
 	logger "github.com/sirupsen/logrus"
@@ -26,7 +27,7 @@ func TestDownloadAndUpload(t *testing.T) {
 		return
 	}
 	for _, item := range list {
-		if item.Type == "file" {
+		if item.Type == "file" && item.Name == "后浪电影学院039《看不见的剪辑》.pdf" {
 			err = client.DownloadFile(pan.DownloadFileReq{
 				RemoteFile:  item,
 				LocalPath:   "./tmpdata",
@@ -94,30 +95,18 @@ func TestDownloadAndUpload(t *testing.T) {
 }
 
 func TestUpload(t *testing.T) {
-	//defer GracefulExist()
-	client, err := GetClient(pan.Quark)
+	defer GracefulExist()
+	client, err := GetClient(pan.Cloudreve)
 	if err != nil {
 		t.Error(err)
 		return
-	}
-	objs, err := client.List(pan.ListReq{Dir: &pan.PanObj{
-		Path: "/来自：分享",
-		Name: "BY.4k",
-	}, Reload: true})
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	for _, obj := range objs {
-		fmt.Println(obj.Name)
 	}
 
-	err = client.UploadPath(pan.UploadPathReq{
-		LocalPath:   "D:/download/jdk",
-		RemotePath:  "/jdk",
-		Resumable:   true,
-		SkipFileErr: true,
-		SuccessDel:  false,
+	err = client.UploadFile(pan.UploadFileReq{
+		LocalFile:  "D:/download/包青天/新包青天/HD高清修復版 _ 新包青天  01_160 _ 情節峰迴路轉扣人心弦 _ 金超群 _ 呂良偉 _ 范鴻軒 _ 曾守明 _粵語_亞視經典劇集_Asia TV Drama_亞視 1995.mp4",
+		RemotePath: "/test1",
+		Resumable:  true,
+		SuccessDel: false,
 	})
 	if err != nil {
 		panic(err)
@@ -231,7 +220,15 @@ func TestShareRestore(t *testing.T) {
 
 func TestDirectLink(t *testing.T) {
 	defer GracefulExist()
-	client, err := GetClient(pan.Cloudreve)
+	//client, err := GetClient(pan.Cloudreve)
+	client, err := GetClientByRw("c3695b6f-6566-400c-bf11-7b08e2c72762", pan.Cloudreve, func(config pan.Properties) error {
+		internal.SetDefaultByTag(config)
+		return internal.Viper.UnmarshalKey(pan.ViperDriverPrefix+string(pan.Cloudreve), config)
+
+	}, func(config pan.Properties) error {
+		internal.Viper.Set(pan.ViperDriverPrefix+string(pan.Cloudreve), config)
+		return internal.Viper.WriteConfig()
+	})
 	if err != nil {
 		t.Error(err)
 		return

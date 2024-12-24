@@ -2,11 +2,6 @@ package pan
 
 import "time"
 
-type Properties interface {
-	// OnlyImportProperties 仅仅定义一个接口来进行继承
-	OnlyImportProperties()
-}
-
 type Json map[string]interface{}
 
 type DiskResp struct {

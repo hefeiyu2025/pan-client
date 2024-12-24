@@ -52,9 +52,9 @@ func (tb *ThunderBrowser) refreshCaptchaToken(action string, metas map[string]st
 	r.SetErrorResult(&errorResult)
 	r.SetBody(&CaptchaTokenRequest{
 		Action:       action,
-		CaptchaToken: tb.properties.CaptchaToken,
+		CaptchaToken: tb.Properties.CaptchaToken,
 		ClientID:     ClientID,
-		DeviceID:     tb.properties.DeviceID,
+		DeviceID:     tb.Properties.DeviceID,
 		Meta:         metas,
 		RedirectUri:  "xlaccsdk01://xunlei.com/callback?state=harbor",
 	})
@@ -73,15 +73,15 @@ func (tb *ThunderBrowser) refreshCaptchaToken(action string, metas map[string]st
 		return pan.OnlyMsg("empty captchaToken")
 	}
 
-	tb.properties.CaptchaToken = result.CaptchaToken
-	_ = tb.WriteConfig(tb.properties)
+	tb.Properties.CaptchaToken = result.CaptchaToken
+	_ = tb.WriteConfig()
 	return nil
 }
 
 // GetCaptchaSign 获取验证码签名
 func (tb *ThunderBrowser) getCaptchaSign() (timestamp, sign string) {
 	timestamp = fmt.Sprint(time.Now().UnixMilli())
-	str := fmt.Sprint(ClientID, ClientVersion, PackageName, tb.properties.DeviceID, timestamp)
+	str := fmt.Sprint(ClientID, ClientVersion, PackageName, tb.Properties.DeviceID, timestamp)
 	for _, algorithm := range Algorithms {
 		str = internal.Md5HashStr(str + algorithm)
 	}
@@ -119,12 +119,12 @@ func GetAction(method string, url string) string {
 }
 
 func (tb *ThunderBrowser) setTokenResp(tokenResp *TokenResp) {
-	tb.properties.TokenType = tokenResp.TokenType
-	tb.properties.AccessToken = tokenResp.AccessToken
-	tb.properties.RefreshToken = tokenResp.RefreshToken
-	tb.properties.ExpiresIn = tokenResp.ExpiresIn
-	tb.properties.Sub = tokenResp.Sub
-	tb.properties.UserID = tokenResp.UserID
+	tb.Properties.TokenType = tokenResp.TokenType
+	tb.Properties.AccessToken = tokenResp.AccessToken
+	tb.Properties.RefreshToken = tokenResp.RefreshToken
+	tb.Properties.ExpiresIn = tokenResp.ExpiresIn
+	tb.Properties.Sub = tokenResp.Sub
+	tb.Properties.UserID = tokenResp.UserID
 }
 
 func (tb *ThunderBrowser) login(username, password string) (*TokenResp, pan.DriverErrorInterface) {
@@ -139,7 +139,7 @@ func (tb *ThunderBrowser) login(username, password string) (*TokenResp, pan.Driv
 	r.SetSuccessResult(&successResult)
 	r.SetErrorResult(&errorResult)
 	r.SetBody(&LogInRequest{
-		CaptchaToken: tb.properties.CaptchaToken,
+		CaptchaToken: tb.Properties.CaptchaToken,
 		Username:     username,
 		Password:     password,
 		ClientID:     ClientID,
@@ -473,8 +473,8 @@ func (tb *ThunderBrowser) restore(restoreReq RestoreReq) (*RestoreResp, pan.Driv
 func (tb *ThunderBrowser) request(request func(r *req.Request) (*req.Response, error)) (*req.Response, pan.DriverErrorInterface) {
 	r := tb.sessionClient.R()
 	r.SetHeaders(map[string]string{
-		"Authorization":         fmt.Sprint(tb.properties.TokenType, " ", tb.properties.AccessToken),
-		"X-Captcha-Token":       tb.properties.CaptchaToken,
+		"Authorization":         fmt.Sprint(tb.Properties.TokenType, " ", tb.Properties.AccessToken),
+		"X-Captcha-Token":       tb.Properties.CaptchaToken,
 		"X-Space-Authorization": "",
 	})
 	var errResp ErrResp
@@ -488,12 +488,12 @@ func (tb *ThunderBrowser) request(request func(r *req.Request) (*req.Response, e
 	case 0:
 		return data, nil
 	case 4122, 4121, 10, 16:
-		_, err = tb.refreshToken(tb.properties.RefreshToken)
+		_, err = tb.refreshToken(tb.Properties.RefreshToken)
 		if err == nil {
 			break
 		}
-		if tb.properties.Username != "" && tb.properties.Password != "" {
-			_, err = tb.login(tb.properties.Username, tb.properties.Password)
+		if tb.Properties.Username != "" && tb.Properties.Password != "" {
+			_, err = tb.login(tb.Properties.Username, tb.Properties.Password)
 			if err == nil {
 				break
 			}
@@ -511,7 +511,7 @@ func (tb *ThunderBrowser) request(request func(r *req.Request) (*req.Response, e
 		//}
 		if errResp.ErrorMsg == "captcha_invalid" {
 			// 验证码token过期
-			if e := tb.refreshCaptchaTokenAtLogin(GetAction(r.Method, r.RawURL), tb.properties.UserID); e != nil {
+			if e := tb.refreshCaptchaTokenAtLogin(GetAction(r.Method, r.RawURL), tb.Properties.UserID); e != nil {
 				return nil, pan.OnlyError(e)
 			}
 			break

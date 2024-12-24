@@ -10,5 +10,17 @@ func GracefulExist() {
 	common.Exit()
 }
 func GetClient(driverType pan.DriverType) (pan.Driver, error) {
-	return pan.GetDriver(driverType)
+	return pan.GetDriver("", driverType, nil, nil)
+}
+
+func GetClientById(id string, driverType pan.DriverType) (pan.Driver, error) {
+	return pan.GetDriver(id, driverType, nil, nil)
+}
+
+func GetClientByRw(id string, driverType pan.DriverType, read pan.ConfigRW, write pan.ConfigRW) (pan.Driver, error) {
+	return pan.GetDriver(id, driverType, read, write)
+}
+
+func RemoveDriver(id string) {
+	pan.RemoveDriver(id)
 }

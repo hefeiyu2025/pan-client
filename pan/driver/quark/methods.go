@@ -109,14 +109,14 @@ func (q *Quark) config() (*RespData[Config], pan.DriverErrorInterface) {
 	}
 	for _, cookie := range response.Cookies() {
 		if cookie.Name == CookiePuusKey {
-			q.properties.Puus = cookie.Value
-			q.properties.RefreshTime = time.Now().UnixMilli()
-			q.sessionClient.SetCommonCookies(&http.Cookie{Name: CookiePuusKey, Value: q.properties.Puus})
+			q.Properties.Puus = cookie.Value
+			q.Properties.RefreshTime = time.Now().UnixMilli()
+			q.sessionClient.SetCommonCookies(&http.Cookie{Name: CookiePuusKey, Value: q.Properties.Puus})
 		}
 		if cookie.Name == CookiePusKey {
-			q.properties.Pus = cookie.Value
-			q.properties.RefreshTime = time.Now().UnixMilli()
-			q.sessionClient.SetCommonCookies(&http.Cookie{Name: CookiePusKey, Value: q.properties.Pus})
+			q.Properties.Pus = cookie.Value
+			q.Properties.RefreshTime = time.Now().UnixMilli()
+			q.sessionClient.SetCommonCookies(&http.Cookie{Name: CookiePusKey, Value: q.Properties.Pus})
 		}
 	}
 	return &successResult, pan.NoError()

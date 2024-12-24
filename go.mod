@@ -4,6 +4,7 @@ go 1.23.0
 
 require (
 	github.com/aws/aws-sdk-go v1.55.5
+	github.com/google/uuid v1.6.0
 	github.com/imroc/req/v3 v3.48.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/sirupsen/logrus v1.9.3
