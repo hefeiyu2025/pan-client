@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/imroc/req/v3"
+	logger "github.com/sirupsen/logrus"
 	"io"
 	urlpkg "net/url"
 	"os"
@@ -18,8 +19,10 @@ import (
 
 var shutdown = false
 var runningMap = make(map[*ChunkDownload]bool)
+var downloadMaxChan chan struct{}
 
 func InitChunkDownload() {
+	downloadMaxChan = make(chan struct{}, Config.Server.DownloadMaxThread)
 	go func() {
 		for {
 			// 判断是否已经关闭
@@ -208,6 +211,7 @@ type downloadTask struct {
 	tempFilename                    string
 	completed                       bool
 	tempFile                        *os.File
+	retry                           int
 }
 
 func (pd *ChunkDownload) handleTask(t *downloadTask, ctx ...context.Context) {
@@ -237,16 +241,26 @@ func (pd *ChunkDownload) handleTask(t *downloadTask, ctx ...context.Context) {
 		SetDownloadCallback(cpr.downloadCallback).
 		Get(pd.url)
 	if er != nil {
-		pd.errCh <- er
+		go pd.retry(t, er)
 		return
 	}
 	if resp.IsErrorState() {
-		pd.errCh <- fmt.Errorf("request error: %s", resp.String())
+		go pd.retry(t, fmt.Errorf("request error: %s", resp.String()))
 		return
 	}
 	t.tempFile = file
 	pd.pw.updateDownloading(t.totalSize)
 	pd.completeTask(t)
+}
+
+func (pd *ChunkDownload) retry(t *downloadTask, err error) {
+	if t.retry < Config.Server.DownloadMaxThread {
+		logger.WithError(err).Errorf("task %s exist error:%s", t.tempFilename, err)
+		t.retry += 1
+		pd.taskCh <- t
+	} else {
+		pd.errCh <- err
+	}
 }
 
 func (pd *ChunkDownload) startWorker(ctx ...context.Context) {
@@ -257,7 +271,9 @@ func (pd *ChunkDownload) startWorker(ctx ...context.Context) {
 		}
 		select {
 		case t := <-pd.taskCh:
+			downloadMaxChan <- struct{}{}
 			pd.handleTask(t, ctx...)
+			<-downloadMaxChan
 		case <-pd.doneCh:
 			return
 		}
