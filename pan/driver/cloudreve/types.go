@@ -309,7 +309,7 @@ type OneDriveUploadReq struct {
 	ChunkSize    int64
 }
 
-type Now61UploadReq struct {
+type NotKnowUploadReq struct {
 	UploadUrl    string
 	Credential   string
 	LocalFile    string

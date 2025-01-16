@@ -17,6 +17,18 @@ func TestDownloadAndUpload(t *testing.T) {
 		t.Error(err)
 		return
 	}
+	err = client.UploadPath(pan.UploadPathReq{
+		LocalPath:   "./tmpdata",
+		RemotePath:  "/test1",
+		Resumable:   true,
+		SkipFileErr: false,
+		SuccessDel:  false,
+		Extensions:  []string{".pdf"},
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
 
 	list, err := client.List(pan.ListReq{Dir: &pan.PanObj{
 		Path: "/",
@@ -83,7 +95,7 @@ func TestDownloadAndUpload(t *testing.T) {
 				RemotePath:  "/test1",
 				Resumable:   true,
 				SkipFileErr: false,
-				SuccessDel:  true,
+				SuccessDel:  false,
 				Extensions:  []string{".pdf"},
 			})
 			if err != nil {

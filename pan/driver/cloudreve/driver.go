@@ -25,12 +25,14 @@ type Cloudreve struct {
 }
 
 type CloudreveProperties struct {
-	Id          string `mapstructure:"id" json:"id" yaml:"id"`
-	Url         string `mapstructure:"url" json:"url" yaml:"url"`
-	Type        string `mapstructure:"type" json:"type" yaml:"type" default:"now61"`
-	Session     string `mapstructure:"session" json:"session" yaml:"session"`
-	RefreshTime int64  `mapstructure:"refresh_time" json:"refresh_time" yaml:"refresh_time" default:"0"`
-	ChunkSize   int64  `mapstructure:"chunk_size" json:"chunk_size" yaml:"chunk_size" default:"104857600"` // 100M
+	Id           string            `mapstructure:"id" json:"id" yaml:"id"`
+	Url          string            `mapstructure:"url" json:"url" yaml:"url"`
+	Type         string            `mapstructure:"type" json:"type" yaml:"type" default:"now61"`
+	Session      string            `mapstructure:"session" json:"session" yaml:"session"`
+	RefreshTime  int64             `mapstructure:"refresh_time" json:"refresh_time" yaml:"refresh_time" default:"0"`
+	ChunkSize    int64             `mapstructure:"chunk_size" json:"chunk_size" yaml:"chunk_size" default:"104857600"` // 100M
+	SkipVerify   bool              `mapstructure:"skip_verify" json:"skip_verify" yaml:"skip_verify" default:"false"`  // 100M
+	OtherCookies map[string]string `mapstructure:"other_cookies" json:"other_cookies" yaml:"other_cookies"`
 }
 
 func (cp *CloudreveProperties) OnlyImportProperties() {
@@ -62,6 +64,15 @@ func (c *Cloudreve) Init() (string, error) {
 		SetCommonHeader("Accept", "application/json, text/plain, */*").
 		SetTimeout(30 * time.Minute).SetBaseURL(c.Properties.Url + "/api/v3").
 		SetCommonCookies(&http.Cookie{Name: CookieSessionKey, Value: c.Properties.Session})
+	if c.Properties.SkipVerify {
+		c.sessionClient.EnableInsecureSkipVerify()
+	}
+	if len(c.Properties.OtherCookies) > 0 {
+		for k, v := range c.Properties.OtherCookies {
+			logger.Info(k, v)
+			c.sessionClient.SetCommonCookies(&http.Cookie{Name: k, Value: v})
+		}
+	}
 	c.defaultClient = req.C().SetCommonHeader(HeaderUserAgent, DefaultUserAgent).SetTimeout(2 * time.Hour)
 	c.defaultClient.GetTransport().
 		WrapRoundTripFunc(func(rt http.RoundTripper) req.HttpRoundTripFunc {
@@ -478,8 +489,8 @@ func (c *Cloudreve) UploadFile(req pan.UploadFileReq) error {
 		session = data.(UploadCredential)
 	}
 	switch c.Properties.Type {
-	case Now61CloudreveType:
-		uploadedSize, err = c.now61Upload(Now61UploadReq{
+	case Now61, Yiandrive, Wuaipan:
+		uploadedSize, err = c.notKnowUpload(NotKnowUploadReq{
 			UploadUrl:    session.UploadURLs[0],
 			Credential:   session.Credential,
 			LocalFile:    req.LocalFile,
@@ -490,7 +501,7 @@ func (c *Cloudreve) UploadFile(req pan.UploadFileReq) error {
 			c.uploadErrAfter(md5Key, uploadedSize, session)
 			return err
 		}
-	case Huang1111CloudreveType:
+	case Huang1111, Hefamily, Hucl:
 		uploadedSize, err = c.oneDriveUpload(OneDriveUploadReq{
 			UploadUrl:    session.UploadURLs[0],
 			LocalFile:    req.LocalFile,

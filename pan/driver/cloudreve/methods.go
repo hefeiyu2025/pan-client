@@ -73,10 +73,6 @@ func (c *Cloudreve) userStorage() (*RespData[Storage], pan.DriverErrorInterface)
 	return funReturnBySuccess(err, response, errorResult, successResult)
 }
 
-//	func (c *Cloudreve) FileUpload(sessionId string, index int) Resp {
-//		return Resp{}
-//	}
-
 func (c *Cloudreve) fileUploadGetUploadSession(req CreateUploadSessionReq) (*RespData[UploadCredential], pan.DriverErrorInterface) {
 	r := c.sessionClient.R()
 	var successResult RespData[UploadCredential]
@@ -421,7 +417,7 @@ func (c *Cloudreve) oneDriveUpload(req OneDriveUploadReq) (int64, pan.DriverErro
 	return pr.GetUploaded(), pan.NoError()
 }
 
-func (c *Cloudreve) now61Upload(req Now61UploadReq) (int64, pan.DriverErrorInterface) {
+func (c *Cloudreve) notKnowUpload(req NotKnowUploadReq) (int64, pan.DriverErrorInterface) {
 	uploadedSize := req.UploadedSize
 	pr, err := pan.NewProcessReader(req.LocalFile, req.ChunkSize, uploadedSize)
 	if err != nil {
