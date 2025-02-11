@@ -205,14 +205,20 @@ func (b *BaseOperate) BaseDownloadPath(req DownloadPathReq,
 					break
 				}
 			}
-			if !NotDownload {
+			if !NotDownload && req.NotTraverse == false {
 				err = b.BaseDownloadPath(DownloadPathReq{
-					RemotePath:       object,
-					LocalPath:        req.LocalPath,
-					Concurrency:      req.Concurrency,
-					ChunkSize:        req.ChunkSize,
-					OverCover:        req.OverCover,
-					DownloadCallback: req.DownloadCallback,
+					RemotePath:         object,
+					LocalPath:          strings.Trim(req.LocalPath, "/") + "/" + objectName,
+					Concurrency:        req.Concurrency,
+					ChunkSize:          req.ChunkSize,
+					OverCover:          req.OverCover,
+					DownloadCallback:   req.DownloadCallback,
+					Extensions:         req.Extensions,
+					IgnorePaths:        req.IgnorePaths,
+					IgnoreExtensions:   req.IgnoreExtensions,
+					IgnoreFiles:        req.IgnoreFiles,
+					RemoteNameTransfer: req.RemoteNameTransfer,
+					SkipFileErr:        req.SkipFileErr,
 				}, List, DownloadFile)
 				if err != nil {
 					if req.SkipFileErr {

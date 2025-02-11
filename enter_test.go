@@ -106,6 +106,32 @@ func TestDownloadAndUpload(t *testing.T) {
 	}
 }
 
+func TestDownload(t *testing.T) {
+	defer GracefulExist()
+	client, err := GetClient(pan.Quark)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = client.DownloadPath(pan.DownloadPathReq{
+		RemotePath: &pan.PanObj{
+			Name: "来自：分享",
+			Type: "dir",
+		},
+		LocalPath:   "./tmpdata",
+		NotTraverse: true,
+		Concurrency: 3,
+		ChunkSize:   104857600,
+		OverCover:   true,
+		Extensions:  []string{".exe", ".pdf"},
+	})
+	if err != nil {
+		panic(err)
+		return
+	}
+}
+
 func TestUpload(t *testing.T) {
 	defer GracefulExist()
 	client, err := GetClient(pan.Cloudreve)

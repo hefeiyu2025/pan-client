@@ -80,11 +80,13 @@ type UploadPathReq struct {
 type DownloadCallback func(localPath, localFile string)
 
 type DownloadPathReq struct {
-	RemotePath         *PanObj  `json:"remotePath,omitempty"`
-	LocalPath          string   `json:"localPath,omitempty"`
-	Concurrency        int      `json:"concurrency,omitempty"`
-	ChunkSize          int64    `json:"chunkSize,omitempty"`
-	OverCover          bool     `json:"overCover,omitempty"`
+	RemotePath  *PanObj `json:"remotePath,omitempty"`
+	LocalPath   string  `json:"localPath,omitempty"`
+	Concurrency int     `json:"concurrency,omitempty"`
+	ChunkSize   int64   `json:"chunkSize,omitempty"`
+	OverCover   bool    `json:"overCover,omitempty"`
+	// 不遍历子目录
+	NotTraverse        bool     `json:"notTraverse,omitempty"`
 	SkipFileErr        bool     `json:"skipFileErr,omitempty"`
 	IgnorePaths        []string `json:"ignorePaths,omitempty"`
 	IgnoreFiles        []string `json:"ignoreFiles,omitempty"`
